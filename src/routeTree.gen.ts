@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPlayRouteImport } from './routes/api/play'
 import { Route as ApiRawRouteImport } from './routes/api/raw'
+import { Route as ApiCdnSplatRouteImport } from './routes/api/cdn/$'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,35 +29,44 @@ const ApiRawRoute = ApiRawRouteImport.update({
   path: '/api/raw',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCdnSplatRoute = ApiCdnSplatRouteImport.update({
+  id: '/api/cdn/$',
+  path: '/api/cdn/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/play': typeof ApiPlayRoute
   '/api/raw': typeof ApiRawRoute
+  '/api/cdn/$': typeof ApiCdnSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/play': typeof ApiPlayRoute
   '/api/raw': typeof ApiRawRoute
+  '/api/cdn/$': typeof ApiCdnSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/api/play': typeof ApiPlayRoute
   '/api/raw': typeof ApiRawRoute
+  '/api/cdn/$': typeof ApiCdnSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/play' | '/api/raw'
+  fullPaths: '/' | '/api/play' | '/api/raw' | '/api/cdn/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/play' | '/api/raw'
-  id: '__root__' | '/' | '/api/play' | '/api/raw'
+  to: '/' | '/api/play' | '/api/raw' | '/api/cdn/$'
+  id: '__root__' | '/' | '/api/play' | '/api/raw' | '/api/cdn/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiPlayRoute: typeof ApiPlayRoute
   ApiRawRoute: typeof ApiRawRoute
+  ApiCdnSplatRoute: typeof ApiCdnSplatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -82,6 +92,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiRawRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cdn/$': {
+      id: '/api/cdn/$'
+      path: '/api/cdn/$'
+      fullPath: '/api/cdn/$'
+      preLoaderRoute: typeof ApiCdnSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -89,6 +106,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiPlayRoute: ApiPlayRoute,
   ApiRawRoute: ApiRawRoute,
+  ApiCdnSplatRoute: ApiCdnSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
