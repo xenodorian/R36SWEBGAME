@@ -50,12 +50,32 @@ function emit(frame: HTMLIFrameElement | null, phase: "keydown" | "keyup", code:
 export function PlayerView({ target, onExit }: { target: PlayTarget; onExit: () => void }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const [pad, setPad] = useState(true);
+  const [doc, setDoc] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const src = playSrc(target);
 
   useEffect(() => {
     const fine = window.matchMedia("(pointer: fine)").matches;
     if (fine) setPad(false);
   }, []);
+
+  useEffect(() => {
+    let cancel = false;
+    setDoc(null);
+    setLoadError(null);
+    fetch(src, { credentials: "same-origin" })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(String(res.status));
+        const text = await res.text();
+        if (!cancel) setDoc(text);
+      })
+      .catch(() => {
+        if (!cancel) setLoadError("Couldn't open this game.");
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [src]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -80,7 +100,7 @@ export function PlayerView({ target, onExit }: { target: PlayTarget; onExit: () 
 
   useEffect(() => {
     frame.current?.focus();
-  }, [src]);
+  }, [doc]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-bg">
@@ -93,14 +113,20 @@ export function PlayerView({ target, onExit }: { target: PlayTarget; onExit: () 
           {pad ? "Hide pad" : "Show pad"}
         </button>
       </header>
-      <iframe
-        ref={frame}
-        title={target.title}
-        src={src}
-        tabIndex={0}
-        sandbox="allow-scripts allow-modals allow-pointer-lock allow-popups allow-forms allow-downloads"
-        className="min-h-0 w-full flex-1 border-0 bg-bg"
-      />
+      {loadError ? (
+        <p className="px-4 py-6 text-sm text-fg">{loadError}</p>
+      ) : doc ? (
+        <iframe
+          ref={frame}
+          title={target.title}
+          srcDoc={doc}
+          tabIndex={0}
+          sandbox="allow-scripts allow-modals allow-pointer-lock allow-popups allow-forms allow-downloads"
+          className="min-h-0 w-full flex-1 border-0 bg-bg"
+        />
+      ) : (
+        <p className="px-4 py-6 text-sm text-muted">Opening…</p>
+      )}
       {pad ? (
         <div className="grid shrink-0 grid-cols-2 items-center gap-2 border-t border-line px-3 py-3">
           <Cluster
