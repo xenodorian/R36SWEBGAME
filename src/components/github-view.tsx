@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Download, File, FileCode2, Folder, Star } from "lucide-react";
+import { Download, File, FileCode2, Folder, Gamepad2, Star } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import {
   fetchRepoMeta,
   fetchRepos,
   fetchTree,
   isHtmlName,
+  isRomName,
   locationUrl,
   resolveAddress,
+  romLabel,
   type Entry,
   type Repo,
 } from "@/lib/github";
@@ -49,6 +51,23 @@ const HOME: Loc = {
   description: null,
 };
 
+type ViewMode = "html" | "roms" | "all";
+
+const VIEW_KEY = "portlight.github.view";
+
+const VIEWS: Array<{ id: ViewMode; label: string }> = [
+  { id: "html", label: "Show HTML only" },
+  { id: "roms", label: "Show HTML and roms" },
+  { id: "all", label: "Show all" },
+];
+
+function rowVisible(row: Row, mode: ViewMode) {
+  if (row.kind !== "file") return true;
+  if (mode === "all") return true;
+  if (mode === "roms") return isRomName(row.entry.name);
+  return false;
+}
+
 function locKey(loc: Loc) {
   return `${loc.kind}|${loc.user}|${loc.owner}|${loc.repo}|${loc.ref}|${loc.path}`;
 }
@@ -85,14 +104,16 @@ export function GithubView({ active, onLibrary, onPlay }: { active: boolean; onL
   const [editing, setEditing] = useState(false);
   const [resolving, setResolving] = useState(false);
   const [armed, setArmed] = useState(false);
+  const [view, setView] = useState<ViewMode>("html");
   const pendingFocus = useRef<string | null>(null);
   const rowRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const loc = stack[stack.length - 1] ?? HOME;
   const key = locKey(loc);
   const url = locationUrl(loc);
+  const listed = rows.filter((row) => rowVisible(row, view));
   const shown = query.trim()
-    ? rows.filter((row) => rowName(row).toLowerCase().includes(query.trim().toLowerCase()))
-    : rows;
+    ? listed.filter((row) => rowName(row).toLowerCase().includes(query.trim().toLowerCase()))
+    : listed;
   const safeCursor = Math.min(cursor, Math.max(0, shown.length - 1));
   const current = shown[safeCursor];
 
@@ -121,12 +142,13 @@ export function GithubView({ active, onLibrary, onPlay }: { active: boolean; onL
         } else {
           const entries = await fetchTree(loc.owner, loc.repo, loc.ref, loc.path);
           if (cancel) return;
-          const next = entries.filter((entry) => entry.type === "dir" || isHtmlName(entry.name)).map(toRow);
+          const next = entries.map(toRow);
           setRows(next);
           if (pendingFocus.current) {
             const name = pendingFocus.current;
             pendingFocus.current = null;
-            const index = next.findIndex((row) => rowName(row) === name);
+            const visible = next.filter((row) => rowVisible(row, view));
+            const index = visible.findIndex((row) => rowName(row) === name);
             if (index >= 0) setCursor(index);
           }
           if (loc.path === "" && loc.description === null) {
@@ -290,7 +312,19 @@ export function GithubView({ active, onLibrary, onPlay }: { active: boolean; onL
     }
   }
 
-  const htmlCount = rows.filter((row) => row.kind === "html").length;
+  useEffect(() => {
+    const saved = window.localStorage.getItem(VIEW_KEY);
+    if (saved === "roms" || saved === "all") setView(saved);
+  }, []);
+
+  function chooseView(next: ViewMode) {
+    setView(next);
+    setCursor(0);
+    window.localStorage.setItem(VIEW_KEY, next);
+  }
+
+  const htmlCount = listed.filter((row) => row.kind === "html").length;
+  const romCount = listed.filter((row) => row.kind === "file" && isRomName(row.entry.name)).length;
   const title = loc.kind === "repos" ? loc.user : loc.repo;
   const kicker = loc.kind === "repos" ? "Public · no login" : loc.owner;
   const blurb =
@@ -298,9 +332,17 @@ export function GithubView({ active, onLibrary, onPlay }: { active: boolean; onL
       ? "Public repositories. HTML files can be played or downloaded."
       : loc.path
         ? loc.path
-        : htmlCount > 0
-          ? `${htmlCount} playable HTML file${htmlCount === 1 ? "" : "s"}`
-          : (loc.description ?? "No HTML in this folder.");
+        : view === "all"
+          ? listed.length > 0
+            ? `${listed.length} item${listed.length === 1 ? "" : "s"}`
+            : "Nothing in this folder."
+          : view === "roms"
+            ? htmlCount + romCount > 0
+              ? `${htmlCount} HTML · ${romCount} ROM${romCount === 1 ? "" : "s"}`
+              : "No HTML or ROM files in this folder."
+            : htmlCount > 0
+              ? `${htmlCount} playable HTML file${htmlCount === 1 ? "" : "s"}`
+              : (loc.description ?? "No HTML in this folder.");
 
   const segments = loc.kind === "tree" ? loc.path.split("/").filter(Boolean) : [];
 
@@ -321,6 +363,23 @@ export function GithubView({ active, onLibrary, onPlay }: { active: boolean; onL
           {resolving ? "…" : "Go"}
         </button>
       </form>
+      <div className="flex shrink-0 flex-wrap gap-2 border-b border-line px-4 py-3" role="group" aria-label="Files to show">
+        {VIEWS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            aria-pressed={view === item.id}
+            className={
+              view === item.id
+                ? "inline-flex min-h-10 items-center bg-signal px-3 py-2 font-display text-sm font-semibold text-ink"
+                : "inline-flex min-h-10 items-center border border-line px-3 py-2 font-display text-sm font-semibold text-fg"
+            }
+            onClick={() => chooseView(item.id)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
       <section className="shrink-0 border-b border-line px-4 py-5">
         <p className="font-display text-xs tracking-widest text-signal uppercase">{kicker}</p>
         <h1 className="mt-1 truncate font-display text-3xl font-semibold tracking-tight md:text-5xl">{title}</h1>
@@ -387,7 +446,15 @@ export function GithubView({ active, onLibrary, onPlay }: { active: boolean; onL
         {!error && loading && shown.length === 0 ? <p className="px-4 py-4 text-sm text-muted">Reading GitHub…</p> : null}
         {!error && !loading && shown.length === 0 ? (
           <p className="px-4 py-4 text-sm text-muted">
-            {query ? "Nothing matches that filter." : loc.kind === "repos" ? "No public repositories." : "No HTML files in this folder."}
+            {query
+              ? "Nothing matches that filter."
+              : loc.kind === "repos"
+                ? "No public repositories."
+                : view === "all"
+                  ? "This folder is empty."
+                  : view === "roms"
+                    ? "No HTML or ROM files in this folder."
+                    : "No HTML files in this folder."}
           </p>
         ) : null}
         {shown.map((row, index) => {
@@ -430,11 +497,16 @@ export function GithubView({ active, onLibrary, onPlay }: { active: boolean; onL
                   Play
                 </span>
               ) : null}
+              {row.kind === "file" && isRomName(row.entry.name) ? (
+                <span className={selected ? "shrink-0 border border-ink px-2 py-1 font-display text-xs tracking-widest uppercase" : "shrink-0 border border-line px-2 py-1 font-display text-xs tracking-widest text-muted uppercase"}>
+                  ROM
+                </span>
+              ) : null}
             </button>
           );
         })}
       </div>
-      {rows.length > 12 ? (
+      {listed.length > 12 ? (
         <form
           className="flex shrink-0 gap-2 border-t border-line px-4 py-3"
           onSubmit={(event) => {
@@ -471,6 +543,7 @@ function RowIcon({ row }: { row: Row }) {
   const className = "size-5 shrink-0";
   if (row.kind === "dir") return <Folder className={className} aria-hidden="true" />;
   if (row.kind === "html") return <FileCode2 className={className} aria-hidden="true" />;
+  if (row.kind === "file" && isRomName(row.entry.name)) return <Gamepad2 className={className} aria-hidden="true" />;
   if (row.kind === "file") return <File className={className} aria-hidden="true" />;
   return <Folder className={className} aria-hidden="true" />;
 }
@@ -488,6 +561,7 @@ function RowMeta({ row }: { row: Row }) {
   }
   if (row.kind === "dir") return <>Folder</>;
   if (row.kind === "html") return <>Playable HTML · {formatBytes(row.entry.size)}</>;
+  if (isRomName(row.entry.name)) return <>{romLabel(row.entry.name)} · {formatBytes(row.entry.size)}</>;
   return <>{formatBytes(row.entry.size)}</>;
 }
 

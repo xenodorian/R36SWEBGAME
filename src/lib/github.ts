@@ -35,6 +35,66 @@ export function isHtmlName(name: string) {
   return /\.html?$/i.test(name);
 }
 
+const ROM_EXT = new Set([
+  "gba", "agb", "gb", "gbc",
+  "nes", "nez", "fds", "unf", "unif",
+  "sfc", "smc", "fig", "swc",
+  "md", "gen", "smd", "32x",
+  "sms", "gg",
+  "n64", "z64", "v64", "ndd",
+  "nds", "dsi", "srl",
+  "3ds", "cci", "cia",
+  "iso", "cso", "pbp", "chd", "cdi", "gdi", "cue", "bin", "img", "mdf", "mds", "nrg",
+  "wbfs", "rvz", "gcz", "wad", "dol",
+  "pce", "sgx",
+  "ngp", "ngc",
+  "a26", "a52", "a78",
+  "lnx", "j64",
+  "ws", "wsc",
+  "vb",
+  "col", "int",
+  "min",
+  "rom",
+  "zip", "7z",
+]);
+
+const ROM_LABEL: Record<string, string> = {
+  gba: "GBA", agb: "GBA", gb: "Game Boy", gbc: "Game Boy",
+  nes: "NES", nez: "NES", fds: "Famicom", unf: "NES", unif: "NES",
+  sfc: "SNES", smc: "SNES", fig: "SNES", swc: "SNES",
+  md: "Mega Drive", gen: "Genesis", smd: "Mega Drive", "32x": "32X",
+  sms: "Master System", gg: "Game Gear",
+  n64: "N64", z64: "N64", v64: "N64", ndd: "N64",
+  nds: "DS", dsi: "DSi", srl: "DS",
+  "3ds": "3DS", cci: "3DS", cia: "3DS",
+  iso: "Disc", cso: "Disc", pbp: "PSP", chd: "Disc", cdi: "Dreamcast", gdi: "Dreamcast",
+  cue: "Disc", bin: "Disc", img: "Disc", mdf: "Disc", mds: "Disc", nrg: "Disc",
+  wbfs: "Wii", rvz: "Wii", gcz: "GameCube", wad: "Wii", dol: "GameCube",
+  pce: "PC Engine", sgx: "PC Engine",
+  ngp: "Neo Geo Pocket", ngc: "Neo Geo Pocket",
+  a26: "Atari", a52: "Atari", a78: "Atari",
+  lnx: "Lynx", j64: "Jaguar",
+  ws: "WonderSwan", wsc: "WonderSwan",
+  vb: "Virtual Boy",
+  col: "ColecoVision", int: "Intellivision",
+  min: "Pokémon Mini",
+  rom: "ROM",
+  zip: "ROM archive", "7z": "ROM archive",
+};
+
+export function romExt(name: string) {
+  const ext = name.split(".").pop()?.toLowerCase() ?? "";
+  return ROM_EXT.has(ext) ? ext : "";
+}
+
+export function isRomName(name: string) {
+  return romExt(name).length > 0;
+}
+
+export function romLabel(name: string) {
+  return ROM_LABEL[romExt(name)] ?? "ROM";
+}
+
 function assertOwner(value: string) {
   if (!OWNER.test(value)) throw new Error("That doesn't look like a GitHub user name.");
 }
@@ -99,7 +159,7 @@ function parseEntry(value: unknown): Entry | null {
 }
 
 function sortEntries(a: Entry, b: Entry) {
-  const rank = (entry: Entry) => (entry.type === "dir" ? 0 : isHtmlName(entry.name) ? 1 : 2);
+  const rank = (entry: Entry) => (entry.type === "dir" ? 0 : isHtmlName(entry.name) ? 1 : isRomName(entry.name) ? 2 : 3);
   const diff = rank(a) - rank(b);
   if (diff) return diff;
   return a.name.localeCompare(b.name);
