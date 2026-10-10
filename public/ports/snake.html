@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grid Snake</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #101210; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+const keys = new Set();
+const pulses = new Set();
+const order = [];
+const DIR = {
+  ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
+  KeyW: [0, -1], KeyS: [0, 1], KeyA: [-1, 0], KeyD: [1, 0],
+};
+function press(phase, code) {
+  const at = order.indexOf(code);
+  if (phase === "keydown") {
+    if (!keys.has(code)) pulses.add(code);
+    keys.add(code);
+    if (at >= 0) order.splice(at, 1);
+    order.push(code);
+  } else {
+    keys.delete(code);
+    if (at >= 0) order.splice(at, 1);
+  }
+}
+function held(code) {
+  return keys.has(code) || pulses.has(code);
+}
+window.addEventListener("keydown", (e) => {
+  press("keydown", e.code);
+  if (e.code.startsWith("Arrow") || e.code === "Space") e.preventDefault();
+});
+window.addEventListener("keyup", (e) => press("keyup", e.code));
+window.addEventListener("blur", () => { keys.clear(); order.length = 0; });
+window.addEventListener("message", (e) => {
+  const d = e.data;
+  if (!d || d.source !== "portlight") return;
+  if (d.phase === "keydown" || d.phase === "keyup") press(d.phase, d.code);
+});
+
+let dpr = 1;
+function resize() {
+  dpr = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = Math.floor(window.innerWidth * dpr);
+  canvas.height = Math.floor(window.innerHeight * dpr);
+}
+window.addEventListener("resize", resize);
+resize();
+
+const COLS = 18;
+const ROWS = 14;
+let snake, dir, queued, food, tick, acc, dead, score, best, started;
+
+function placeFood() {
+  const open = [];
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      if (!snake.some((p) => p.x === x && p.y === y)) open.push({ x, y });
+    }
+  }
+  food = open[Math.floor(Math.random() * open.length)] || { x: 0, y: 0 };
+}
+
+function reset() {
+  snake = [{ x: 6, y: 7 }, { x: 5, y: 7 }, { x: 4, y: 7 }];
+  dir = [1, 0];
+  queued = [1, 0];
+  score = 0;
+  dead = false;
+  started = false;
+  tick = 0.16;
+  acc = 0;
+  placeFood();
+}
+reset();
+
+function wanted() {
+  for (let i = order.length - 1; i >= 0; i--) {
+    const next = DIR[order[i]];
+    if (next && held(order[i])) return next;
+  }
+  for (const code of pulses) {
+    if (DIR[code]) return DIR[code];
+  }
+  return null;
+}
+
+function step() {
+  const next = wanted();
+  if (next && (next[0] !== -dir[0] || next[1] !== -dir[1])) queued = next;
+  dir = queued;
+  const head = { x: snake[0].x + dir[0], y: snake[0].y + dir[1] };
+  if (head.x < 0 || head.y < 0 || head.x >= COLS || head.y >= ROWS || snake.some((p) => p.x === head.x && p.y === head.y)) {
+    dead = true;
+    best = Math.max(best || 0, score);
+    return;
+  }
+  snake.unshift(head);
+  if (food && head.x === food.x && head.y === food.y) {
+    score += 1;
+    tick = Math.max(0.07, 0.16 - score * 0.004);
+    placeFood();
+  } else {
+    snake.pop();
+  }
+}
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.033, (now - last) / 1000);
+  last = now;
+  if (!started && (keys.size > 0 || pulses.size > 0)) started = true;
+  if (dead && (held("KeyZ") || held("Space") || held("Enter"))) reset();
+  if (started && !dead) {
+    acc += dt;
+    while (acc >= tick && !dead) {
+      acc -= tick;
+      step();
+    }
+  }
+  const W = canvas.width;
+  const H = canvas.height;
+  const cell = Math.floor(Math.min((W - 24 * dpr) / COLS, (H - 72 * dpr) / ROWS));
+  const ox = Math.floor((W - cell * COLS) / 2);
+  const oy = Math.floor(56 * dpr + (H - 56 * dpr - cell * ROWS) / 2);
+  ctx.fillStyle = "#101210";
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = "#e7efe4";
+  ctx.font = `${Math.round(22 * dpr)}px "Segoe UI", sans-serif`;
+  ctx.fillText(String(score).padStart(2, "0"), 16 * dpr, 34 * dpr);
+  ctx.fillStyle = "#a8b5a6";
+  ctx.font = `${Math.round(13 * dpr)}px "Segoe UI", sans-serif`;
+  ctx.fillText(best ? `BEST ${best}` : "D-PAD TO TURN", 64 * dpr, 32 * dpr);
+  ctx.fillStyle = "#181c18";
+  ctx.fillRect(ox, oy, cell * COLS, cell * ROWS);
+  ctx.strokeStyle = "#313832";
+  ctx.strokeRect(ox + 0.5, oy + 0.5, cell * COLS - 1, cell * ROWS - 1);
+  if (food) {
+    ctx.fillStyle = "#e7efe4";
+    const m = cell * 0.28;
+    ctx.fillRect(ox + food.x * cell + m, oy + food.y * cell + m, cell - m * 2, cell - m * 2);
+  }
+  snake.forEach((p, i) => {
+    ctx.fillStyle = i === 0 ? "#e6a23c" : "#b97d28";
+    const m = i === 0 ? cell * 0.12 : cell * 0.18;
+    ctx.fillRect(ox + p.x * cell + m, oy + p.y * cell + m, cell - m * 2, cell - m * 2);
+  });
+  if (!started || dead) {
+    ctx.fillStyle = "rgba(16,18,16,0.55)";
+    ctx.fillRect(ox, oy, cell * COLS, cell * ROWS);
+    ctx.fillStyle = "#e6a23c";
+    ctx.font = `${Math.round(22 * dpr)}px "Segoe UI", sans-serif`;
+    ctx.fillText(dead ? "GRID LOCKED" : "GRID SNAKE", ox + 12 * dpr, oy + cell * ROWS * 0.46);
+    ctx.fillStyle = "#e7efe4";
+    ctx.font = `${Math.round(14 * dpr)}px "Segoe UI", sans-serif`;
+    ctx.fillText(dead ? "Z or A to restart" : "Press a direction", ox + 12 * dpr, oy + cell * ROWS * 0.46 + 24 * dpr);
+  }
+  requestAnimationFrame(frame);
+  pulses.clear();
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

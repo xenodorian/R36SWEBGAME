@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Break Amber</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #101210; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+const keys = new Set();
+const pulses = new Set();
+function press(phase, code) {
+  if (phase === "keydown") {
+    if (!keys.has(code)) pulses.add(code);
+    keys.add(code);
+  } else keys.delete(code);
+}
+function held(code) {
+  return keys.has(code) || pulses.has(code);
+}
+window.addEventListener("keydown", (e) => {
+  press("keydown", e.code);
+  if (e.code.startsWith("Arrow") || e.code === "Space") e.preventDefault();
+});
+window.addEventListener("keyup", (e) => press("keyup", e.code));
+window.addEventListener("blur", () => keys.clear());
+window.addEventListener("message", (e) => {
+  const d = e.data;
+  if (!d || d.source !== "portlight") return;
+  if (d.phase === "keydown" || d.phase === "keyup") press(d.phase, d.code);
+});
+
+let dpr = 1;
+function resize() {
+  dpr = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = Math.floor(window.innerWidth * dpr);
+  canvas.height = Math.floor(window.innerHeight * dpr);
+}
+window.addEventListener("resize", resize);
+resize();
+
+const COLS = 8;
+const ROWS = 5;
+let paddle, ball, bricks, score, lives, stuck, won, over, latch;
+
+function makeBricks(W) {
+  const gap = 8 * dpr;
+  const top = 78 * dpr;
+  const width = (W - gap * (COLS + 1)) / COLS;
+  const height = 18 * dpr;
+  const list = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      list.push({
+        x: gap + c * (width + gap),
+        y: top + r * (height + gap),
+        w: width,
+        h: height,
+        tone: r,
+        alive: true,
+      });
+    }
+  }
+  return list;
+}
+
+function stick() {
+  stuck = true;
+  ball.x = paddle.x + paddle.w / 2;
+  ball.y = paddle.y - ball.r - 2;
+  ball.vx = 0;
+  ball.vy = 0;
+}
+
+function reset(full) {
+  const W = canvas.width;
+  const H = canvas.height;
+  paddle = { w: Math.max(72 * dpr, W * 0.18), h: 12 * dpr, x: 0, y: H - 48 * dpr };
+  paddle.x = (W - paddle.w) / 2;
+  ball = { r: 7 * dpr, x: 0, y: 0, vx: 0, vy: 0 };
+  if (full) {
+    bricks = makeBricks(W);
+    score = 0;
+    lives = 3;
+    won = false;
+    over = false;
+  }
+  stick();
+  latch = true;
+}
+reset(true);
+
+const TONES = ["#e6a23c", "#d4922e", "#c07e22", "#a86b1c", "#8d5918"];
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.033, (now - last) / 1000);
+  last = now;
+  const W = canvas.width;
+  const H = canvas.height;
+  paddle.y = H - 48 * dpr;
+  paddle.w = Math.max(72 * dpr, W * 0.18);
+  const left = held("ArrowLeft") || held("KeyA");
+  const right = held("ArrowRight") || held("KeyD");
+  const launch = held("KeyZ") || held("Space") || held("ArrowUp");
+  if (!over && !won) {
+    if (left) paddle.x -= W * 0.85 * dt;
+    if (right) paddle.x += W * 0.85 * dt;
+    paddle.x = Math.max(8 * dpr, Math.min(W - paddle.w - 8 * dpr, paddle.x));
+    if (stuck) {
+      ball.x = paddle.x + paddle.w / 2;
+      ball.y = paddle.y - ball.r - 2;
+      if (launch && !latch) {
+        stuck = false;
+        const speed = Math.max(H * 0.55, 420 * dpr);
+        ball.vx = speed * 0.35;
+        ball.vy = -speed;
+      }
+    } else {
+      ball.x += ball.vx * dt;
+      ball.y += ball.vy * dt;
+      if (ball.x < ball.r) { ball.x = ball.r; ball.vx *= -1; }
+      if (ball.x > W - ball.r) { ball.x = W - ball.r; ball.vx *= -1; }
+      if (ball.y < ball.r) { ball.y = ball.r; ball.vy *= -1; }
+      if (ball.vy > 0 && ball.y + ball.r >= paddle.y && ball.y - ball.r <= paddle.y + paddle.h && ball.x >= paddle.x && ball.x <= paddle.x + paddle.w) {
+        const hit = (ball.x - (paddle.x + paddle.w / 2)) / (paddle.w / 2);
+        const speed = Math.hypot(ball.vx, ball.vy) * 1.02;
+        ball.vx = hit * speed * 0.9;
+        ball.vy = -Math.max(180 * dpr, Math.abs(speed * Math.cos(hit)));
+        ball.y = paddle.y - ball.r - 1;
+      }
+      for (const brick of bricks) {
+        if (!brick.alive) continue;
+        if (ball.x > brick.x - ball.r && ball.x < brick.x + brick.w + ball.r && ball.y > brick.y - ball.r && ball.y < brick.y + brick.h + ball.r) {
+          brick.alive = false;
+          score += 10;
+          const overlapX = Math.min(ball.x - brick.x, brick.x + brick.w - ball.x);
+          const overlapY = Math.min(ball.y - brick.y, brick.y + brick.h - ball.y);
+          if (overlapX < overlapY) ball.vx *= -1;
+          else ball.vy *= -1;
+          break;
+        }
+      }
+      if (bricks.every((brick) => !brick.alive)) won = true;
+      if (ball.y > H + ball.r) {
+        lives -= 1;
+        if (lives <= 0) over = true;
+        else stick();
+      }
+    }
+  } else if ((over || won) && launch && !latch) {
+    reset(true);
+  }
+  latch = launch;
+
+  ctx.fillStyle = "#101210";
+  ctx.fillRect(0, 0, W, H);
+  bricks.forEach((brick) => {
+    if (!brick.alive) return;
+    ctx.fillStyle = TONES[brick.tone] || "#e6a23c";
+    ctx.fillRect(brick.x, brick.y, brick.w, brick.h);
+  });
+  ctx.fillStyle = "#e7efe4";
+  ctx.fillRect(paddle.x, paddle.y, paddle.w, paddle.h);
+  ctx.beginPath();
+  ctx.fillStyle = "#e6a23c";
+  ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.font = `${Math.round(16 * dpr)}px "Segoe UI", sans-serif`;
+  ctx.fillStyle = "#e7efe4";
+  ctx.fillText(String(score).padStart(3, "0"), 16 * dpr, 32 * dpr);
+  ctx.fillStyle = "#a8b5a6";
+  ctx.fillText(`BALLS ${lives}`, 80 * dpr, 32 * dpr);
+  if (stuck && !over && !won) {
+    ctx.fillText("Z OR A TO LAUNCH", 16 * dpr, 54 * dpr);
+  }
+  if (over || won) {
+    ctx.fillStyle = "rgba(16,18,16,0.72)";
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#e6a23c";
+    ctx.font = `${Math.round(32 * dpr)}px "Segoe UI", sans-serif`;
+    ctx.fillText(won ? "CLEARED" : "RACK EMPTY", 20 * dpr, H * 0.46);
+    ctx.fillStyle = "#e7efe4";
+    ctx.font = `${Math.round(16 * dpr)}px "Segoe UI", sans-serif`;
+    ctx.fillText("Z or A for a new rack", 20 * dpr, H * 0.46 + 28 * dpr);
+  }
+  requestAnimationFrame(frame);
+  pulses.clear();
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
