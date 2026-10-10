@@ -45,7 +45,12 @@ class CommandBatcher:
     def __init__(self, display_num=":99"):
         self.display_num = display_num
         self.proc = None
+        self.batch = []
+        self.last_flush_time = 0.0
         self.start_process()
+
+    def log_callback(self, message):
+        print(message, flush=True)
 
     def start_process(self):
         try:
@@ -56,15 +61,9 @@ class CommandBatcher:
             env.pop("LD_LIBRARY_PATH", None)
             # Capture stderr to see what xdotool is complaining about
             self.proc = subprocess.Popen(["xdotool", "-"], stdin=subprocess.PIPE,
-                                       stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                                        env=env, bufsize=0, universal_newlines=True)
             
-            # Start a thread to read stderr and log it
-            def log_stderr(pipe, logger):
-                for line in pipe:
-                    logger(f"xdotool error: {line.strip()}")
-            import threading
-            threading.Thread(target=log_stderr, args=(self.proc.stderr, self.log_callback), daemon=True).start()
         except: pass
 
     def add_command(self, *args):
@@ -237,7 +236,7 @@ class FirefoxFramebufferWrapper:
         self.display = os.environ.get("DISPLAY")
         self.root = Path(__file__).parent.absolute()
         # Use a local profile directory instead of /tmp to see if Firefox respects user.js better
-        self.profile_dir = self.root / ".mozilla_profile"
+        self.profile_dir = Path(os.environ["PORTLIGHT_PROFILE"]) if os.environ.get("PORTLIGHT_PROFILE") else self.root / ".mozilla_profile"
         self.profile_dir.mkdir(parents=True, exist_ok=True)
         self.capture_backend = "placeholder"
         self.input_backend = "noop"
@@ -729,9 +728,9 @@ user_pref("browser.cache.memory.max_entry_size", {mem_max_entry});
 user_pref("browser.cache.disk.max_entry_size", {disk_max_entry});
 
 /* Disable gamepad/touch API to prevent double-handling */
-user_pref("dom.gamepad.enabled", false);
+user_pref("dom.gamepad.enabled", true);
 user_pref("dom.w3c_touch_events.enabled", 0);
-user_pref("dom.w3c_pointer_events.enabled", false);
+user_pref("dom.w3c_pointer_events.enabled", true);
 
 /* Stability & Speed: Consolidated JIT Block */
 user_pref("javascript.options.baselinejit", true);
@@ -910,17 +909,6 @@ user_pref("browser.tabs.max_memory_usage_mb", {tabs_max_mem});
         usercontent_css = """
         /* Custom web content styles */
         @-moz-document url-prefix() {
-            /* Disable CSS animations on web content (saves CPU) */
-            *, *::before, *::after {
-                animation-duration: 0s !important;
-                transition-duration: 0s !important;
-            }
-            
-            /* Surgical DOM culling: skip rendering for off-screen posts/comments */
-            article, section, .Post, .Comment, [role="article"] {
-                contain: layout paint !important;
-            }
-            
             /* Constrain video height */
             video {
                 max-height: 480px !important;
