@@ -121,7 +121,7 @@ export function GithubView({ active, onLibrary, onPlay }: { active: boolean; onL
         } else {
           const entries = await fetchTree(loc.owner, loc.repo, loc.ref, loc.path);
           if (cancel) return;
-          const next = entries.map(toRow);
+          const next = entries.filter((entry) => entry.type === "dir" || isHtmlName(entry.name)).map(toRow);
           setRows(next);
           if (pendingFocus.current) {
             const name = pendingFocus.current;
@@ -300,7 +300,7 @@ export function GithubView({ active, onLibrary, onPlay }: { active: boolean; onL
         ? loc.path
         : htmlCount > 0
           ? `${htmlCount} playable HTML file${htmlCount === 1 ? "" : "s"}`
-          : (loc.description ?? "No HTML in this folder. Open a directory or pick a file to download.");
+          : (loc.description ?? "No HTML in this folder.");
 
   const segments = loc.kind === "tree" ? loc.path.split("/").filter(Boolean) : [];
 
@@ -386,7 +386,9 @@ export function GithubView({ active, onLibrary, onPlay }: { active: boolean; onL
         ) : null}
         {!error && loading && shown.length === 0 ? <p className="px-4 py-4 text-sm text-muted">Reading GitHub…</p> : null}
         {!error && !loading && shown.length === 0 ? (
-          <p className="px-4 py-4 text-sm text-muted">{query ? "Nothing matches that filter." : "This folder is empty."}</p>
+          <p className="px-4 py-4 text-sm text-muted">
+            {query ? "Nothing matches that filter." : loc.kind === "repos" ? "No public repositories." : "No HTML files in this folder."}
+          </p>
         ) : null}
         {shown.map((row, index) => {
           const selected = index === safeCursor;
