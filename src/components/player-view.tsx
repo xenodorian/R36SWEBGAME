@@ -488,7 +488,7 @@ export function PlayerView({ target, onExit }: { target: PlayTarget; onExit: () 
             title={target.title}
             srcDoc={doc}
             tabIndex={0}
-            sandbox="allow-scripts allow-modals allow-pointer-lock allow-popups allow-forms allow-downloads"
+            sandbox="allow-scripts allow-same-origin allow-modals allow-pointer-lock allow-popups allow-forms allow-downloads"
             className="absolute inset-0 h-full w-full border-0 bg-bg"
           />
           {mouseOn ? (

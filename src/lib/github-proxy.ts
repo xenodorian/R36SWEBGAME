@@ -124,8 +124,9 @@ export function injectPlayable(html: string, target: GhTarget) {
   const rewritten = html
     .replace(/<base\b[^>]*>/gi, "")
     .replace(/(\s(?:src|href|poster)=["'])\/(?!\/)/gi, `$1${root}`)
-    .replace(/url\(\s*(['"]?)\/(?!\/)/gi, `url($1${root}`);
-  const head = `<base href="${escAttr(dirBase)}"><script>${BRIDGE}</script>`;
+    .replace(/url\(\s*(['"]?)\/(?!\/)/gi, `url($1${root}`)
+    .replace(/(\s(?:src|href|poster)=["'])(?![a-z]+:|\/\/|#|\/)/gi, `$1${escAttr(dirBase)}`);
+  const head = `<script>var b=document.createElement("base");b.href="${escAttr(dirBase)}";(document.head||document.documentElement).appendChild(b);</script><script>${BRIDGE}</script>`;
   if (/<head[^>]*>/i.test(rewritten)) {
     return rewritten.replace(/<head[^>]*>/i, (match) => `${match}${head}`);
   }
