@@ -155,11 +155,11 @@ export function LibraryView({
             <h1 className="mt-1 truncate font-display text-3xl font-semibold tracking-tight md:text-5xl">{title}</h1>
             <p className="mt-2 line-clamp-2 text-sm text-muted">{blurb}</p>
             <div className="mt-4 flex flex-wrap gap-2">
-              <button type="button" className={primaryBtn} onClick={playCurrent}>
+              <button type="button" data-pad="action" className={primaryBtn} onClick={playCurrent}>
                 Play
               </button>
               {current?.kind === "cart" ? (
-                <button type="button" className={ghostBtn} onClick={() => onRemove(current.cart.id)}>
+                <button type="button" data-pad="action" className={ghostBtn} onClick={() => onRemove(current.cart.id)}>
                   <Trash2 className="size-4" aria-hidden="true" />
                   Remove
                 </button>
@@ -186,6 +186,7 @@ export function LibraryView({
               <button
                 type="button"
                 role="option"
+                data-pad="item"
                 aria-selected={selected}
                 ref={(node) => {
                   rows.current[index] = node;
@@ -224,7 +225,7 @@ export function LibraryView({
           </p>
         ) : null}
       </div>
-      <HintBar>D-pad move · A play · GitHub browses public repos</HintBar>
+      <HintBar>D-pad moves · A press · Stick mouse</HintBar>
     </>
   );
 }

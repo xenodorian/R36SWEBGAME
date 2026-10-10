@@ -41,7 +41,9 @@
 
   button:focus-visible,
   a:focus-visible,
-  input:focus-visible {
+  input:focus-visible,
+  [data-pad-current="true"],
+  [data-chrome-current="true"] {
     outline: 2px solid var(--color-signal);
     outline-offset: 2px;
   }

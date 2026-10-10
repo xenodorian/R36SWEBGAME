@@ -359,7 +359,7 @@ export function GithubView({ active, onLibrary, onPlay }: { active: boolean; onL
           onBlur={() => setEditing(false)}
           className="h-11 min-w-0 flex-1 border border-line bg-bg px-3 text-sm text-fg"
         />
-        <button type="submit" className={ghostBtn} disabled={resolving}>
+        <button type="submit" data-pad="action" className={ghostBtn} disabled={resolving}>
           {resolving ? "…" : "Go"}
         </button>
       </form>
@@ -368,6 +368,7 @@ export function GithubView({ active, onLibrary, onPlay }: { active: boolean; onL
           <button
             key={item.id}
             type="button"
+            data-pad="toggle"
             aria-pressed={view === item.id}
             className={
               view === item.id
@@ -386,11 +387,11 @@ export function GithubView({ active, onLibrary, onPlay }: { active: boolean; onL
         <p className="mt-2 line-clamp-2 text-sm text-muted">{loading && rows.length === 0 ? "Reading GitHub…" : blurb}</p>
         {loc.kind === "tree" ? (
           <div className="mt-3 flex flex-wrap items-center gap-1 text-sm">
-            <button type="button" className="text-muted hover:text-fg" onClick={() => setStack([{ ...HOME, user: loc.owner, owner: loc.owner }])}>
+            <button type="button" data-pad="crumb" className="text-muted hover:text-fg" onClick={() => setStack([{ ...HOME, user: loc.owner, owner: loc.owner }])}>
               {loc.owner}
             </button>
             <span className="text-line">/</span>
-            <button type="button" className="text-muted hover:text-fg" onClick={() => openDirReset("")}>
+            <button type="button" data-pad="crumb" className="text-muted hover:text-fg" onClick={() => openDirReset("")}>
               {loc.repo}
             </button>
             {segments.map((segment, index) => {
@@ -398,7 +399,7 @@ export function GithubView({ active, onLibrary, onPlay }: { active: boolean; onL
               return (
                 <span key={path} className="inline-flex items-center gap-1">
                   <span className="text-line">/</span>
-                  <button type="button" className="text-muted hover:text-fg" onClick={() => openDirReset(path)}>
+                  <button type="button" data-pad="crumb" className="text-muted hover:text-fg" onClick={() => openDirReset(path)}>
                     {segment}
                   </button>
                 </span>
@@ -407,27 +408,27 @@ export function GithubView({ active, onLibrary, onPlay }: { active: boolean; onL
           </div>
         ) : null}
         <div className="mt-4 flex flex-wrap gap-2">
-          <button type="button" className={ghostBtn} onClick={back}>
+          <button type="button" data-pad="back" className={ghostBtn} onClick={back}>
             Back
           </button>
           {current?.kind === "html" ? (
-            <button type="button" className={primaryBtn} onClick={() => playEntry(current.entry)}>
+            <button type="button" data-pad="action" className={primaryBtn} onClick={() => playEntry(current.entry)}>
               Play
             </button>
           ) : null}
           {current && current.kind !== "html" && current.kind !== "file" ? (
-            <button type="button" className={primaryBtn} onClick={() => activate(current)}>
+            <button type="button" data-pad="action" className={primaryBtn} onClick={() => activate(current)}>
               Open
             </button>
           ) : null}
           {current?.kind === "file" ? (
-            <button type="button" className={primaryBtn} onClick={() => download(current.entry)}>
+            <button type="button" data-pad="action" className={primaryBtn} onClick={() => download(current.entry)}>
               <Download className="size-4" aria-hidden="true" />
               Download
             </button>
           ) : null}
           {current?.kind === "html" ? (
-            <button type="button" className={ghostBtn} onClick={() => download(current.entry)}>
+            <button type="button" data-pad="action" className={ghostBtn} onClick={() => download(current.entry)}>
               <Download className="size-4" aria-hidden="true" />
               Download
             </button>
@@ -438,7 +439,7 @@ export function GithubView({ active, onLibrary, onPlay }: { active: boolean; onL
         {error ? (
           <div className="px-4 py-4" aria-live="polite">
             <p className="text-sm text-fg">{error}</p>
-            <button type="button" className={`${ghostBtn} mt-3`} onClick={() => setReload((value) => value + 1)}>
+            <button type="button" data-pad="action" className={`${ghostBtn} mt-3`} onClick={() => setReload((value) => value + 1)}>
               Try again
             </button>
           </div>
@@ -464,6 +465,7 @@ export function GithubView({ active, onLibrary, onPlay }: { active: boolean; onL
               key={row.kind === "repo" ? row.repo.name : row.entry.path}
               type="button"
               role="option"
+              data-pad="item"
               aria-selected={selected}
               ref={(node) => {
                 rowRefs.current[index] = node;
@@ -526,7 +528,7 @@ export function GithubView({ active, onLibrary, onPlay }: { active: boolean; onL
           />
         </form>
       ) : null}
-      <HintBar>D-pad move · A open · B back</HintBar>
+      <HintBar>D-pad moves · A press · B back · Stick mouse</HintBar>
     </>
   );
 

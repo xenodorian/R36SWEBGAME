@@ -200,12 +200,15 @@ export function PlayerView({ target, onExit }: { target: PlayTarget; onExit: () 
   const hatPrev = useRef([false, false, false, false]);
   const hatHold = useRef({ code: "", next: 0 });
   const confirmPrev = useRef(false);
+  const chromeRef = useRef<number | null>(null);
+  const shoulderPrev = useRef([false, false, false]);
   const [doc, setDoc] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [keyboardOn, setKeyboardOn] = useState(false);
   const [mouseOn, setMouseOn] = useState(false);
   const [cell, setCell] = useState({ r: 2, c: 1 });
   const [modView, setModView] = useState<Mods>({ shift: false, ctrl: false, alt: false, caps: false });
+  const [chrome, setChrome] = useState<number | null>(null);
   const src = playSrc(target);
   keyboardRef.current = keyboardOn;
   mouseRef.current = mouseOn;
@@ -403,14 +406,37 @@ export function PlayerView({ target, onExit }: { target: PlayTarget; onExit: () 
         }
         const south = pad.buttons[0];
         const confirm = !!south && (south.pressed || south.value > 0.5);
-        if (keyboardRef.current) {
-          if (confirm !== confirmPrev.current) {
-            confirmPrev.current = confirm;
-            typeSelected(confirm);
+        const shoulders = [4, 5, 1].map((index) => {
+          const button = pad.buttons[index];
+          return !!button && (button.pressed || button.value > 0.5);
+        });
+        shoulders.forEach((down, index) => {
+          if (down === shoulderPrev.current[index]) return;
+          shoulderPrev.current[index] = down;
+          if (!down) return;
+          const nodes = [...document.querySelectorAll<HTMLButtonElement>("[data-chrome]")];
+          if (index === 2) {
+            if (chromeRef.current != null) {
+              chromeRef.current = null;
+              setChrome(null);
+            } else if (keyboardRef.current) setKeyboardOn(false);
+            return;
           }
-        } else if (confirmPrev.current) {
-          confirmPrev.current = false;
-          typeSelected(false);
+          if (!nodes.length) return;
+          const dir = index === 0 ? -1 : 1;
+          const cur = chromeRef.current;
+          const next = cur == null ? 0 : (cur + dir + nodes.length) % nodes.length;
+          chromeRef.current = next;
+          setChrome(next);
+        });
+        if (confirm !== confirmPrev.current) {
+          confirmPrev.current = confirm;
+          if (chromeRef.current != null) {
+            if (confirm) {
+              const nodes = [...document.querySelectorAll<HTMLButtonElement>("[data-chrome]")];
+              nodes[chromeRef.current]?.click();
+            }
+          } else if (keyboardRef.current) typeSelected(confirm);
         }
         if (mouseRef.current) {
           const l3 = pad.buttons[10];
@@ -448,7 +474,7 @@ export function PlayerView({ target, onExit }: { target: PlayTarget; onExit: () 
   }, []);
 
   const hint = [
-    keyboardOn ? "D-pad selects · A or Z types" : mouseOn ? "" : "Arrows and Z play",
+    keyboardOn ? "D-pad selects · A or Z types" : mouseOn ? "" : "Arrows and Z play · L R header",
     mouseOn ? "WASD or stick moves · Q or L3 left click · E or R3 right click" : "",
     "Esc leaves",
   ]
@@ -458,12 +484,14 @@ export function PlayerView({ target, onExit }: { target: PlayTarget; onExit: () 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-bg">
       <header className="flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b border-line px-3 py-2">
-        <button type="button" className={ghostBtn} onClick={onExit}>
+        <button type="button" data-chrome="" data-chrome-current={chrome === 0 ? "true" : undefined} className={ghostBtn} onClick={onExit}>
           Exit
         </button>
         <h1 className="min-w-0 flex-1 truncate font-display text-lg font-semibold">{target.title}</h1>
         <button
           type="button"
+          data-chrome=""
+          data-chrome-current={chrome === 1 ? "true" : undefined}
           aria-pressed={keyboardOn}
           className={keyboardOn ? `${ghostBtn} border-signal bg-signal text-ink` : ghostBtn}
           onClick={() => setKeyboardOn((value) => !value)}
@@ -472,6 +500,8 @@ export function PlayerView({ target, onExit }: { target: PlayTarget; onExit: () 
         </button>
         <button
           type="button"
+          data-chrome=""
+          data-chrome-current={chrome === 2 ? "true" : undefined}
           aria-pressed={mouseOn}
           className={mouseOn ? `${ghostBtn} border-signal bg-signal text-ink` : ghostBtn}
           onClick={() => {

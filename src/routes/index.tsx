@@ -5,6 +5,7 @@ import { loadCarts, saveCarts, cartId, cartTitle, type Cart } from "@/lib/shelf"
 import { LibraryView, type Builtin } from "@/components/library-view";
 import { GithubView, type GhPlay } from "@/components/github-view";
 import { PlayerView, type PlayTarget } from "@/components/player-view";
+import { MenuControls } from "@/components/menu-controls";
 import { tabBtn } from "@/components/controls";
 
 export const Route = createFileRoute("/")({ component: Home });
@@ -72,6 +73,7 @@ function Home() {
           <nav className="flex shrink-0 gap-2">
             <button
               type="button"
+              data-pad="library"
               className={libraryOn ? `${tabBtn} bg-signal text-ink` : `${tabBtn} border border-line text-fg`}
               onClick={() => setScreen("library")}
             >
@@ -79,6 +81,7 @@ function Home() {
             </button>
             <button
               type="button"
+              data-pad="github"
               className={githubOn ? `${tabBtn} bg-signal text-ink` : `${tabBtn} border border-line text-fg`}
               onClick={() => setScreen("github")}
             >
@@ -100,6 +103,7 @@ function Home() {
       <div className={githubOn ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
         <GithubView active={githubOn} onLibrary={() => setScreen("library")} onPlay={openGithub} />
       </div>
+      {screen !== "play" ? <MenuControls /> : null}
       {screen === "play" && play ? <PlayerView target={play} onExit={exitPlay} /> : null}
     </main>
   );
