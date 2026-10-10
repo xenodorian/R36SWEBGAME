@@ -126,7 +126,9 @@ export function injectPlayable(html: string, target: GhTarget) {
     .replace(/(\s(?:src|href|poster)=["'])\/(?!\/)/gi, `$1${root}`)
     .replace(/url\(\s*(['"]?)\/(?!\/)/gi, `url($1${root}`)
     .replace(/(\s(?:src|href|poster)=["'])(?![a-z]+:|\/\/|#|\/)/gi, `$1${escAttr(dirBase)}`);
-  const head = `<script>var b=document.createElement("base");b.href="${escAttr(dirBase)}";(document.head||document.documentElement).appendChild(b);</script><script>${BRIDGE}</script>`;
+  const rootJson = JSON.stringify(dirBase);
+  const assets = `(function(){var root=${rootJson};function abs(url){if(typeof url!=="string"||!url)return url;var t=url.trim();if(/^[a-z][a-z0-9+.-]*:/i.test(t)||t.indexOf("//")===0||t.charAt(0)==="/"||t.charAt(0)==="#"||t.indexOf("data:")===0||t.indexOf("blob:")===0)return url;try{var u=new URL(t,"https://portlight.local"+root);return u.pathname+u.search+u.hash}catch(e){return root+t}}function hook(proto,prop){var d=Object.getOwnPropertyDescriptor(proto,prop);if(!d||!d.set||!d.get)return;Object.defineProperty(proto,prop,{configurable:true,enumerable:d.enumerable,get:function(){return d.get.call(this)},set:function(v){d.set.call(this,abs(v))}})}hook(HTMLImageElement.prototype,"src");if(window.HTMLMediaElement)hook(HTMLMediaElement.prototype,"src");var setAttr=Element.prototype.setAttribute;Element.prototype.setAttribute=function(name,value){if((name==="src"||name==="href"||name==="poster")&&typeof value==="string")value=abs(value);return setAttr.call(this,name,value)};if(window.fetch){var origFetch=window.fetch;window.fetch=function(input,init){if(typeof input==="string")input=abs(input);return origFetch.call(this,input,init)}}var origOpen=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(method,url){var args=Array.prototype.slice.call(arguments);args[1]=abs(String(url));return origOpen.apply(this,args)}})();`;
+  const head = `<script>${assets}</script><script>${BRIDGE}</script>`;
   if (/<head[^>]*>/i.test(rewritten)) {
     return rewritten.replace(/<head[^>]*>/i, (match) => `${match}${head}`);
   }
