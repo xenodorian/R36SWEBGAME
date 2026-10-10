@@ -8,7 +8,7 @@ export type GhTarget = {
 const OWNER = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
 const REPO = /^[A-Za-z0-9._-]{1,100}$/;
 const REF = /^(?!.*\.\.)[A-Za-z0-9._\-/]{1,200}$/;
-const FILEPATH = /^(?!.*\.\.)[A-Za-z0-9._+\- ()@[\],']{1,500}$/;
+const FILEPATH = /^(?!.*\.\.)[A-Za-z0-9._+\-/ ()@[\],']{1,500}$/;
 
 const TYPES: Record<string, string> = {
   html: "text/html; charset=utf-8",
@@ -26,6 +26,7 @@ const TYPES: Record<string, string> = {
   mp3: "audio/mpeg",
   wav: "audio/wav",
   ogg: "audio/ogg",
+  mid: "audio/midi",
   txt: "text/plain; charset=utf-8",
   md: "text/plain; charset=utf-8",
 };
@@ -53,6 +54,38 @@ function encodeGitPath(value: string) {
 export function guessType(path: string) {
   const ext = path.split(".").pop()?.toLowerCase() ?? "";
   return TYPES[ext] ?? "application/octet-stream";
+}
+
+export function cdnDir(target: GhTarget) {
+  const dir = target.path.includes("/") ? target.path.slice(0, target.path.lastIndexOf("/") + 1) : "";
+  const enc = encodeGitPath(dir);
+  const root = `/api/cdn/${encodeURIComponent(target.owner)}/${encodeURIComponent(target.repo)}/${encodeURIComponent(target.ref)}/`;
+  return `${root}${enc}${enc ? "/" : ""}`;
+}
+
+export function targetFromCdnSplat(splat: string): GhTarget {
+  const parts = splat
+    .split("/")
+    .filter((part) => part.length > 0)
+    .map((part) => {
+      try {
+        return decodeURIComponent(part);
+      } catch {
+        return part;
+      }
+    });
+  if (parts.length < 3) throw new Error("That GitHub path can't be opened.");
+  const owner = parts[0] ?? "";
+  const repo = parts[1] ?? "";
+  const ref = parts[2] ?? "";
+  let path = parts.slice(3).join("/");
+  if (!path || !/\.[A-Za-z0-9]{1,8}$/.test(path)) {
+    path = `${path.replace(/\/$/, "")}${path ? "/" : ""}index.html`;
+  }
+  if (!OWNER.test(owner) || !REPO.test(repo) || !REF.test(ref) || !FILEPATH.test(path)) {
+    throw new Error("That GitHub path can't be opened.");
+  }
+  return { owner, repo, ref, path };
 }
 
 export function rawGithubUrl(target: GhTarget) {
@@ -85,9 +118,8 @@ function escAttr(value: string) {
 const BRIDGE = `(function(){window.addEventListener("message",function(e){var d=e.data;if(!d||d.source!=="portlight"||(d.phase!=="keydown"&&d.phase!=="keyup"))return;var nodes=[document,window];if(document.body)nodes.push(document.body);if(document.activeElement)nodes.push(document.activeElement);var canvas=document.querySelector("canvas");if(canvas)nodes.push(canvas);for(var i=0;i<nodes.length;i++){if(!nodes[i]||!nodes[i].dispatchEvent)continue;try{var ev=new KeyboardEvent(d.phase,{key:d.key,code:d.code,bubbles:true,cancelable:true});try{Object.defineProperty(ev,"keyCode",{get:function(){return d.keyCode}});Object.defineProperty(ev,"which",{get:function(){return d.keyCode}})}catch(err){}nodes[i].dispatchEvent(ev)}catch(err){}}});})();`;
 
 export function injectPlayable(html: string, target: GhTarget) {
-  const repoRoot = `https://cdn.jsdelivr.net/gh/${encodeURIComponent(target.owner)}/${encodeURIComponent(target.repo)}@${encodeURIComponent(target.ref)}/`;
-  const dir = target.path.includes("/") ? target.path.slice(0, target.path.lastIndexOf("/") + 1) : "";
-  const dirBase = `${repoRoot}${encodeGitPath(dir)}${dir ? "/" : ""}`;
+  const repoRoot = cdnDir({ ...target, path: "index.html" });
+  const dirBase = cdnDir(target);
   const root = escAttr(repoRoot);
   const rewritten = html
     .replace(/<base\b[^>]*>/gi, "")
