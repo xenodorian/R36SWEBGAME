@@ -5,7 +5,7 @@ The pad is the mouse. GitHub browsing, downloads and play all happen inside Port
 
 ## Install on the R36S
 
-1. Download **Portlight-R36S.zip** from the [Releases page](https://github.com/xenodorian/R36SWEBGAME/releases/latest) and unzip it.
+1. Download [Portlight-R36S.zip](https://github.com/xenodorian/R36SWEBGAME/raw/release/Portlight-R36S.zip) (44 MB) and unzip it.
 2. Plug the SD card into a Windows computer and double-click **install.bat**.
    It copies Portlight and the Node runtime (checked against a SHA256) onto the EASYROMS drive. No download is needed for this step.
 3. Boot the R36S, open **Ports**, and start **Portlight**.
