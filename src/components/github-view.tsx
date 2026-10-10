@@ -104,7 +104,7 @@ export function GithubView({ active, onLibrary, onPlay }: { active: boolean; onL
   const [editing, setEditing] = useState(false);
   const [resolving, setResolving] = useState(false);
   const [armed, setArmed] = useState(false);
-  const [view, setView] = useState<ViewMode>("html");
+  const [view, setView] = useState<ViewMode>("roms");
   const pendingFocus = useRef<string | null>(null);
   const rowRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const loc = stack[stack.length - 1] ?? HOME;
@@ -314,7 +314,7 @@ export function GithubView({ active, onLibrary, onPlay }: { active: boolean; onL
 
   useEffect(() => {
     const saved = window.localStorage.getItem(VIEW_KEY);
-    if (saved === "roms" || saved === "all") setView(saved);
+    if (saved === "html" || saved === "roms" || saved === "all") setView(saved);
   }, []);
 
   function chooseView(next: ViewMode) {
