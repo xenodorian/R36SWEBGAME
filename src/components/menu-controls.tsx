@@ -1,15 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-
-function stickAxis(value: number) {
-  const dead = 0.22;
-  if (Math.abs(value) < dead) return 0;
-  return Math.sign(value) * ((Math.abs(value) - dead) / (1 - dead));
-}
-
-function pressed(pad: Gamepad, index: number) {
-  const button = pad.buttons[index];
-  return !!button && (button.pressed || button.value > 0.5);
-}
+import { readPad } from "@/lib/pad";
 
 function visible(el: HTMLElement) {
   const rect = el.getBoundingClientRect();
@@ -90,6 +80,7 @@ export function MenuControls() {
   const [mouse, setMouse] = useState(false);
   const hold = useRef({ code: "", next: 0 });
   const clickPrev = useRef([false, false, false, false]);
+  const stickSince = useRef(0);
 
   useEffect(() => {
     pos.current = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
@@ -149,22 +140,23 @@ export function MenuControls() {
       if (keys.has("KeyW")) my -= 1;
       if (keys.has("KeyS")) my += 1;
       if (pad) {
-        const sx = stickAxis(pad.axes[0] ?? 0);
-        const sy = stickAxis(pad.axes[1] ?? 0);
-        if (sx || sy) {
-          if (!shown.current) {
+        const state = readPad(pad);
+        if (state.lx || state.ly) {
+          if (!stickSince.current) stickSince.current = now;
+          if (!shown.current && now - stickSince.current > 250) {
             shown.current = true;
             setMouse(true);
           }
-          mx += sx;
-          my += sy;
+          mx += state.lx;
+          my += state.ly;
+        } else {
+          stickSince.current = 0;
         }
-        const hat = [12, 13, 14, 15].map((index) => pressed(pad as Gamepad, index));
         let code = "";
-        if (hat[0]) code = "up";
-        else if (hat[1]) code = "down";
-        else if (hat[2]) code = "left";
-        else if (hat[3]) code = "right";
+        if (state.up) code = "up";
+        else if (state.down) code = "down";
+        else if (state.left) code = "left";
+        else if (state.right) code = "right";
         if (!code) hold.current = { code: "", next: 0 };
         else if (code !== hold.current.code) {
           point(code as "up");
@@ -173,16 +165,12 @@ export function MenuControls() {
           point(code as "up");
           hold.current = { code, next: now + 90 };
         }
-        const south = pressed(pad, 0);
-        const back = pressed(pad, 1);
-        const l3 = pressed(pad, 10);
-        const r3 = pressed(pad, 11);
         const prev = clickPrev.current;
-        if (south && !prev[0]) pressCurrent();
-        if (back && !prev[1]) pressBack();
-        if (shown.current && l3 && !prev[2]) clickAt(pos.current.x, pos.current.y, 0);
-        if (shown.current && r3 && !prev[3]) clickAt(pos.current.x, pos.current.y, 2);
-        clickPrev.current = [south, back, l3, r3];
+        if (state.a && !prev[0]) pressCurrent();
+        if (state.b && !prev[1]) pressBack();
+        if (shown.current && state.l3 && !prev[2]) clickAt(pos.current.x, pos.current.y, 0);
+        if (shown.current && state.r3 && !prev[3]) clickAt(pos.current.x, pos.current.y, 2);
+        clickPrev.current = [state.a, state.b, state.l3, state.r3];
       }
       if (shown.current && (mx || my)) {
         const mag = Math.hypot(mx, my);

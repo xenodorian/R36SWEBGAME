@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { guessType, pullFile, readTarget } from "@/lib/github-proxy";
+import { guessType, openFile, readTarget } from "@/lib/github-proxy";
 
 export const Route = createFileRoute("/api/raw")({
   server: {
@@ -7,16 +7,18 @@ export const Route = createFileRoute("/api/raw")({
       GET: async ({ request }) => {
         try {
           const target = readTarget(request);
-          const bytes = await pullFile(target);
+          const upstream = await openFile(target);
           const download = new URL(request.url).searchParams.get("download") === "1";
           const name = (target.path.split("/").pop() || "download").replace(/["\r\n]/g, "");
           const headers: Record<string, string> = {
             "content-type": guessType(target.path),
-            "cache-control": "private, max-age=120",
+            "cache-control": "no-store",
             "x-content-type-options": "nosniff",
           };
+          const length = upstream.headers.get("content-length");
+          if (length) headers["content-length"] = length;
           if (download) headers["content-disposition"] = `attachment; filename="${name}"`;
-          return new Response(bytes, { headers });
+          return new Response(upstream.body, { headers });
         } catch (error) {
           const message = error instanceof Error ? error.message : "Couldn't download that file.";
           return new Response(message, {

@@ -92,15 +92,20 @@ export function rawGithubUrl(target: GhTarget) {
   return `https://raw.githubusercontent.com/${encodeURIComponent(target.owner)}/${encodeURIComponent(target.repo)}/${encodeGitPath(target.ref)}/${encodeGitPath(target.path)}`;
 }
 
-export async function pullFile(target: GhTarget) {
+export async function openFile(target: GhTarget, timeoutMs = 0) {
   const res = await fetch(rawGithubUrl(target), {
-    headers: { "User-Agent": "Portlight" },
+    headers: { "User-Agent": "Portlight", Accept: "application/octet-stream" },
     redirect: "follow",
-    signal: AbortSignal.timeout(15000),
+    signal: timeoutMs > 0 ? AbortSignal.timeout(timeoutMs) : undefined,
   });
   if (!res.ok) {
     throw new Error(res.status === 404 ? "GitHub doesn't have that file." : `GitHub returned ${res.status}.`);
   }
+  return res;
+}
+
+export async function pullFile(target: GhTarget) {
+  const res = await openFile(target, 20000);
   const advertised = Number(res.headers.get("content-length") || 0);
   if (advertised > 12 * 1024 * 1024) throw new Error("That file is over 12 MB.");
   const bytes = new Uint8Array(await res.arrayBuffer());

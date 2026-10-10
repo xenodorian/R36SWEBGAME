@@ -10,9 +10,9 @@ The pad is the mouse. GitHub browsing, downloads, and play all happen inside Por
 2. Copy [arkos/Portlight.sh](arkos/Portlight.sh) to `EASYROMS/ports/Portlight.sh`.
 3. In the games menu, open **Ports** and start **Portlight**.
 
-The script stops the games menu, starts the station on the device, and shows it fullscreen. Quit returns to the games menu.
+The script stops the games menu, starts the station on the device, and shows it fullscreen. Quit returns to the games menu. Saves and the shelf stay in `ports/portlight/runtime/profile` on the SD card.
 
-The R36S still needs Node and a fullscreen display runtime stored in `ports/portlight/runtime/` (Node at `runtime/bin/node`). Those are part of Portlight, not a separate browser you surf with.
+Node lives at `ports/portlight/runtime/bin/node`. The fullscreen runtime lives at `ports/portlight/runtime/firefox/firefox`. If `gptokeyb` is on the device or at `runtime/gptokeyb`, the port uses it so the pad still works when Firefox cannot see the joystick. Those files belong to Portlight. They are not a browser you surf with.
 
 ## Included games
 

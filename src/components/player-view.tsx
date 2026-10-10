@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { appPath } from "@/lib/app-path";
+import { readPad } from "@/lib/pad";
 import { ghostBtn } from "@/components/controls";
 
 export type PlayTarget =
@@ -145,12 +146,6 @@ function clamp01(value: number) {
   return Math.min(1, Math.max(0, value));
 }
 
-function stickAxis(value: number) {
-  const dead = 0.2;
-  if (Math.abs(value) < dead) return 0;
-  return Math.sign(value) * ((Math.abs(value) - dead) / (1 - dead));
-}
-
 type MouseProbe = {
   getPos: () => { x: number; y: number };
   setHeld: (codes: string[]) => void;
@@ -210,6 +205,8 @@ export function PlayerView({ target, onExit }: { target: PlayTarget; onExit: () 
   const [modView, setModView] = useState<Mods>({ shift: false, ctrl: false, alt: false, caps: false });
   const [chrome, setChrome] = useState<number | null>(null);
   const src = playSrc(target);
+  const localFrame =
+    typeof window !== "undefined" && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname);
   keyboardRef.current = keyboardOn;
   mouseRef.current = mouseOn;
   cellRef.current = cell;
@@ -271,15 +268,16 @@ export function PlayerView({ target, onExit }: { target: PlayTarget; onExit: () 
 
   useEffect(() => {
     const node = frame.current;
-    if (!node || !doc) return;
+    if (!node || !doc || localFrame) return;
     const origin = window.location.origin;
     const html = doc.replace(/(\s(?:src|href|poster)=["'])\/api\//g, `$1${origin}/api/`);
     const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
     node.src = url;
     return () => URL.revokeObjectURL(url);
-  }, [doc]);
+  }, [doc, localFrame]);
 
   useEffect(() => {
+    if (localFrame) return;
     let cancel = false;
     setDoc(null);
     setLoadError(null);
@@ -295,7 +293,7 @@ export function PlayerView({ target, onExit }: { target: PlayTarget; onExit: () 
     return () => {
       cancel = true;
     };
-  }, [src]);
+  }, [src, localFrame]);
 
   useEffect(() => {
     frame.current?.focus();
@@ -375,12 +373,10 @@ export function PlayerView({ target, onExit }: { target: PlayTarget; onExit: () 
         }
       }
       if (pad) {
-        stickX = stickAxis(pad.axes[0] ?? 0);
-        stickY = stickAxis(pad.axes[1] ?? 0);
-        const hatNow = [12, 13, 14, 15].map((index) => {
-          const button = pad?.buttons[index];
-          return !!button && (button.pressed || button.value > 0.5);
-        });
+        const state = readPad(pad);
+        stickX = state.lx;
+        stickY = state.ly;
+        const hatNow = [state.up, state.down, state.left, state.right];
         if (keyboardRef.current) {
           let code = "";
           if (hatNow[0]) code = "ArrowUp";
@@ -404,12 +400,8 @@ export function PlayerView({ target, onExit }: { target: PlayTarget; onExit: () 
           });
           hatPrev.current = hatNow;
         }
-        const south = pad.buttons[0];
-        const confirm = !!south && (south.pressed || south.value > 0.5);
-        const shoulders = [4, 5, 1].map((index) => {
-          const button = pad.buttons[index];
-          return !!button && (button.pressed || button.value > 0.5);
-        });
+        const confirm = state.a;
+        const shoulders = [state.l, state.r, state.b];
         shoulders.forEach((down, index) => {
           if (down === shoulderPrev.current[index]) return;
           shoulderPrev.current[index] = down;
@@ -439,10 +431,8 @@ export function PlayerView({ target, onExit }: { target: PlayTarget; onExit: () 
           } else if (keyboardRef.current) typeSelected(confirm);
         }
         if (mouseRef.current) {
-          const l3 = pad.buttons[10];
-          const r3 = pad.buttons[11];
-          setClick(0, !!l3 && (l3.pressed || l3.value > 0.5));
-          setClick(2, !!r3 && (r3.pressed || r3.value > 0.5));
+          setClick(0, state.l3);
+          setClick(2, state.r3);
         }
       }
       if (mouseRef.current) {
@@ -521,6 +511,25 @@ export function PlayerView({ target, onExit }: { target: PlayTarget; onExit: () 
       </header>
       {loadError ? (
         <p className="px-4 py-6 text-sm text-fg">{loadError}</p>
+      ) : localFrame ? (
+        <div className="relative min-h-0 flex-1">
+          <iframe
+            ref={frame}
+            title={target.title}
+            src={src}
+            tabIndex={0}
+            className="absolute inset-0 h-full w-full border-0 bg-bg"
+          />
+          {mouseOn ? (
+            <div className="pointer-events-none absolute inset-0 z-10">
+              <div ref={cursorRef} className="absolute h-5 w-5" style={{ left: "50%", top: "50%" }}>
+                <svg viewBox="0 0 16 16" className="h-5 w-5">
+                  <path d="M1 1 L1 13 L5.2 9.4 L8.4 15 L10.6 14 L7.3 8.4 L13 8.4 Z" fill="#e6a23c" stroke="#16130c" strokeWidth="1" />
+                </svg>
+              </div>
+            </div>
+          ) : null}
+        </div>
       ) : doc ? (
         <div className="relative min-h-0 flex-1">
           <iframe

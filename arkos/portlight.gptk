@@ -1,0 +1,20 @@
+# Maps the R36S pad to Portlight keys when the browser cannot see the joystick.
+deadzone = 18000
+up = up
+down = down
+left = left
+right = right
+a = z
+b = x
+x = c
+y = v
+start = enter
+select = escape
+l1 = l
+r1 = r
+l3 = q
+r3 = e
+left_analog_up = w
+left_analog_down = s
+left_analog_left = a
+left_analog_right = d
