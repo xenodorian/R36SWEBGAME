@@ -6,13 +6,13 @@ The pad is the mouse. GitHub browsing, downloads, and play all happen inside Por
 
 ## Install on the R36S
 
-1. Copy this project onto the SD card at `EASYROMS/ports/portlight/`.
-2. Copy [arkos/Portlight.sh](arkos/Portlight.sh) to `EASYROMS/ports/Portlight.sh`.
-3. In the games menu, open **Ports** and start **Portlight**.
+Plug the SD card into a Windows computer and double-click [install.bat](install.bat). It copies Portlight onto the EASYROMS drive and downloads the handheld runtime.
 
-The script stops the games menu, starts the station on the device, and shows it fullscreen. Quit returns to the games menu. Saves and the shelf stay in `ports/portlight/runtime/profile` on the SD card.
+Boot the R36S, open **Ports**, and start **Portlight**. The first launch finishes the install. Leave Wi-Fi on. That only happens once.
 
-Node lives at `ports/portlight/runtime/bin/node`. The fullscreen runtime lives at `ports/portlight/runtime/firefox/firefox`. If `gptokeyb` is on the device or at `runtime/gptokeyb`, the port uses it so the pad still works when Firefox cannot see the joystick. Those files belong to Portlight. They are not a browser you surf with.
+Quit returns to the games menu. Saves and the shelf stay in `ports/portlight/runtime/profile` on the SD card.
+
+If the card does not already contain a fullscreen runtime, install Fire4ArkOS from Tools and run `install.bat` again. It copies that file into Portlight. You do not open it or type an address.
 
 ## Included games
 
