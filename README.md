@@ -1,6 +1,18 @@
 # Portlight
 
-HTML game station for the R36S on ArkOS, and any other browser. Browse a GitHub account or repository, shelf an HTML game, and play it with the handheld pad.
+Portlight is the browser for HTML games on an R36S running ArkOS. You launch it from Ports. It is not a page you open in Firefox, and it does not run on another computer.
+
+The pad is the mouse. GitHub browsing, downloads, and play all happen inside Portlight.
+
+## Install on the R36S
+
+1. Copy this project onto the SD card at `EASYROMS/ports/portlight/`.
+2. Copy [arkos/Portlight.sh](arkos/Portlight.sh) to `EASYROMS/ports/Portlight.sh`.
+3. In the games menu, open **Ports** and start **Portlight**.
+
+The script stops the games menu, starts the station on the device, and shows it fullscreen. Quit returns to the games menu.
+
+The R36S still needs Node and a fullscreen display runtime stored in `ports/portlight/runtime/` (Node at `runtime/bin/node`). Those are part of Portlight, not a separate browser you surf with.
 
 ## Included games
 
@@ -10,23 +22,11 @@ HTML game station for the R36S on ArkOS, and any other browser. Browse a GitHub 
 
 ## Play a game from GitHub
 
-Open the GitHub tab and enter any of:
+Open the GitHub tab. It starts on [xenodorian's repositories](https://github.com/xenodorian?tab=repositories), showing HTML files and ROMs. You can also enter a user name, `owner/repo`, or a GitHub URL that points at an `.html` file.
 
-- a user name, such as `xenodorian`
-- `owner/repo`
-- a full GitHub URL that points at an `.html` file
+Shelved games stay on the device.
 
-Shelved games stay on this device. Select is Enter or Z. Escape leaves a game.
-
-Handheld mapping while a game is running:
-
-| Button | Key |
-| --- | --- |
-| D-pad | Arrow keys |
-| A | Z |
-| B | X |
-| X | C |
-| Y | V |
+While a game is open, L and R move across Exit, Keyboard, and Mouse. Outside a game, the left stick brings up the cursor. L3 or Q left-clicks. R3 or E right-clicks. B goes back.
 
 Games can also listen for Portlight messages:
 
@@ -39,15 +39,11 @@ window.addEventListener("message", (event) => {
 });
 ```
 
-## Run
+## Develop on a computer
 
 ```bash
 npm install
 npm run dev
 ```
 
-The dev server prints a local address. Production build:
-
-```bash
-npm run build
-```
+That is only for working on Portlight. It is not how you install it on the handheld.
