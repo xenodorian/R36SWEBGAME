@@ -36,11 +36,31 @@ function hatAxis(value: number) {
   return null;
 }
 
+/** True when the handheld front-end (launched with ?fe=1) already drives the cursor and clicks. */
+export function padOwnedByFrontEnd() {
+  if (typeof window === "undefined") return false;
+  try {
+    if (new URLSearchParams(window.location.search).get("fe") === "1") {
+      window.sessionStorage.setItem("portlight-fe", "1");
+      return true;
+    }
+    return window.sessionStorage.getItem("portlight-fe") === "1";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The R36S joystick driver reports a raw layout with no "standard" mapping:
+ * D-pad 8-11, Select 12, Start 13, L3 14, R3 15. Standard pads use D-pad 12-15, L3 10, R3 11.
+ */
 export function readPad(pad: Gamepad): PadState {
-  let up = down(pad, 12);
-  let downB = down(pad, 13);
-  let left = down(pad, 14);
-  let right = down(pad, 15);
+  const standard = pad.mapping === "standard";
+  const dpad = standard ? 12 : 8;
+  let up = down(pad, dpad);
+  let downB = down(pad, dpad + 1);
+  let left = down(pad, dpad + 2);
+  let right = down(pad, dpad + 3);
   if (!up && !downB && !left && !right) {
     const hat = hatAxis(pad.axes[9] ?? -1);
     up = hat === "up";
@@ -57,8 +77,8 @@ export function readPad(pad: Gamepad): PadState {
     b: down(pad, 1),
     l: down(pad, 4),
     r: down(pad, 5),
-    l3: down(pad, 10),
-    r3: down(pad, 11),
+    l3: down(pad, standard ? 10 : 14),
+    r3: down(pad, standard ? 11 : 15),
     lx: stickAxis(pad.axes[0] ?? 0),
     ly: stickAxis(pad.axes[1] ?? 0),
   };

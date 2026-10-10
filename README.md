@@ -1,32 +1,28 @@
 # Portlight
 
-Portlight is the browser for HTML games on an R36S running ArkOS. You launch it from Ports. It is not a page you open in Firefox, and it does not run on another computer.
-
-The pad is the mouse. GitHub browsing, downloads, and play all happen inside Portlight.
+Portlight is the browser for HTML games on an R36S running ArkOS. You launch it from Ports. It does not run on another computer.
+The pad is the mouse. GitHub browsing, downloads and play all happen inside Portlight.
 
 ## Install on the R36S
 
-Plug the SD card into a Windows computer and double-click [install.bat](install.bat). It copies Portlight onto the EASYROMS drive and downloads the handheld runtime.
+1. Download **Portlight-R36S.zip** from the [Releases page](https://github.com/xenodorian/R36SWEBGAME/releases/latest) and unzip it.
+2. Plug the SD card into a Windows computer and double-click **install.bat**.
+   It copies Portlight and the Node runtime (checked against a SHA256) onto the EASYROMS drive. No download is needed for this step.
+3. Boot the R36S, open **Ports**, and start **Portlight**.
 
-Boot the R36S, open **Ports**, and start **Portlight**. The first launch finishes the install, including the fullscreen display. Leave Wi-Fi on. That only happens once. Quit returns to the games menu. Saves stay on the card.
+**First launch only:** Portlight installs Firefox, Xvfb and xdotool with apt. This needs Wi-Fi once and takes a few minutes.
+Those packages come from Ubuntu's archive for the device, so they cannot be bundled on the card. After that Portlight works offline except for the GitHub tab.
+Reinstalling keeps your saves and shelf (they live in `ports/portlight/data`). If something fails, read `ports/portlight/portlight.log`.
 
 ## Included games
-
-- **Lantern Run** — jump the posts. Up or Z launches the lantern.
-- **Grid Snake** — turn with the D-pad. Don't bite the trail.
-- **Break Amber** — move the paddle. Z or A launches the ball.
+- **Lantern Run**, **Grid Snake**, **Break Amber**
 
 ## Play a game from GitHub
+Open the GitHub tab. It lists HTML files and ROMs. You can also enter a user name, `owner/repo`, or a GitHub URL to an `.html` file. Shelved games stay on the device.
 
-Open the GitHub tab. It starts on [xenodorian's repositories](https://github.com/xenodorian?tab=repositories), showing HTML files and ROMs. You can also enter a user name, `owner/repo`, or a GitHub URL that points at an `.html` file.
+Games can listen for Portlight messages:
 
-Shelved games stay on the device.
-
-While a game is open, L and R move across Exit, Keyboard, and Mouse. Outside a game, the left stick brings up the cursor. L3 or Q left-clicks. R3 or E right-clicks. B goes back.
-
-Games can also listen for Portlight messages:
-
-```js
+```
 window.addEventListener("message", (event) => {
   const data = event.data;
   if (!data || data.source !== "portlight") return;
@@ -35,11 +31,17 @@ window.addEventListener("message", (event) => {
 });
 ```
 
-## Develop on a computer
+## Build the release zip
+```
+npm ci
+./scripts/build-release.sh
+```
 
-```bash
+## Develop on a computer
+```
 npm install
 npm run dev
 ```
+That is only for working on Portlight.
 
-That is only for working on Portlight. It is not how you install it on the handheld.
+Licenses: see [NOTICE.md](NOTICE.md). The display front-end is GPL-3.0.

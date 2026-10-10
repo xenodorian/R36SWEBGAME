@@ -1,106 +1,69 @@
 #!/bin/bash
-# Portlight is the browser. Open this from the Ports menu.
-# It starts the station on the device and shows it fullscreen.
+# Portlight: open this from the Ports menu. Everything it needs is on the card
+# except the display runtime (Firefox, Xvfb, xdotool), which installs once over Wi-Fi.
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-APP="$ROOT/portlight"
-LOG="$ROOT/portlight.log"
-HOME_DIR="$APP/runtime/home"
-PROFILE="$APP/runtime/profile"
+BASE="$ROOT/portlight"
+APP="$BASE/app"
+NODE="$BASE/runtime/bin/node"
+DATA="$BASE/data"
+LOG="$BASE/portlight.log"
+BROWSER="$BASE/display/browser.arm64"
+WRAP="$BASE/display/firefox-framebuffer-wrapper.py"
 
-if [ ! -f "$APP/package.json" ]; then
-  echo "Portlight is missing its app folder at $APP" | tee "$LOG"
-  sleep 6
-  exit 1
-fi
+say() { echo "$*" | tee -a "$LOG"; echo "$*" > /dev/tty1 2>/dev/null || true; }
+die() { say "$*"; sleep 8; exit 1; }
+: > "$LOG"
 
-mkdir -p "$HOME_DIR" "$PROFILE"
-export HOME="$HOME_DIR"
+[ -f "$APP/server/index.mjs" ] || die "Portlight app files are missing. Run install.bat again."
+[ -f "$BROWSER" ] && [ -f "$WRAP" ] || die "Portlight display files are missing. Run install.bat again."
+[ -f "$NODE" ] || die "Portlight runtime is missing. Run install.bat again."
+chmod +x "$NODE" "$BROWSER" "$WRAP" 2>/dev/null || true
 
-if command -v systemctl >/dev/null 2>&1; then
-  sudo systemctl stop emulationstation >/dev/null 2>&1 || true
-fi
+# Saves and the game shelf live here and survive reinstalls.
+mkdir -p "$DATA/home" "$DATA/profile"
+export HOME="$DATA/home"
+export PORTLIGHT_PROFILE="$DATA/profile"
 
-cleanup() {
-  if [ -n "$GPTK_PID" ]; then
-    kill "$GPTK_PID" >/dev/null 2>&1 || true
-  fi
-  if [ -n "$SERVER_PID" ]; then
-    kill "$SERVER_PID" >/dev/null 2>&1 || true
-  fi
-  if command -v systemctl >/dev/null 2>&1; then
-    sudo systemctl start emulationstation >/dev/null 2>&1 || true
-  fi
-}
+cleanup() { [ -n "$SERVER_PID" ] && kill "$SERVER_PID" >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 
-if [ -x "$APP/runtime/bin/node" ]; then
-  NODE="$APP/runtime/bin/node"
-elif command -v node >/dev/null 2>&1; then
-  NODE="$(command -v node)"
-else
-  echo "Portlight has no Node runtime in $APP/runtime." | tee "$LOG"
-  sleep 6
-  exit 1
+fix_apt_sources() {
+  # Ubuntu 19.10 is end of life. Point apt at the archive that still serves it.
+  sudo sed -i -E 's#https?://(ports|archive|security)\.ubuntu\.com#http://old-releases.ubuntu.com#g' /etc/apt/sources.list 2>/dev/null || true
+}
+
+have_display_runtime() {
+  { command -v firefox >/dev/null 2>&1 || command -v firefox-esr >/dev/null 2>&1; } \
+    && command -v Xvfb >/dev/null 2>&1 && command -v xdotool >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1
+}
+
+if ! have_display_runtime; then
+  say "Installing the display runtime. Leave Wi-Fi on. This happens once."
+  if ! sudo apt-get update >>"$LOG" 2>&1; then
+    fix_apt_sources
+    sudo apt-get update >>"$LOG" 2>&1
+  fi
+  sudo apt-get install -y firefox-esr xvfb xdotool python3 libsdl2-2.0-0 >>"$LOG" 2>&1 \
+    || sudo apt-get install -y firefox xvfb xdotool python3 libsdl2-2.0-0 >>"$LOG" 2>&1 || true
+  have_display_runtime || die "The display runtime did not install. Check Wi-Fi, then see $LOG"
 fi
 
-export PATH="$APP/runtime/bin:$PATH"
-if [ ! -e "$APP/node_modules/vite/bin/vite.js" ]; then
-  echo "Installing Portlight. Leave Wi-Fi on. This happens once." | tee "$LOG"
-  NPM="$APP/runtime/lib/node_modules/npm/bin/npm-cli.js"
-  if [ ! -f "$NPM" ]; then
-    echo "Node on the card is incomplete. Run install.bat again." | tee -a "$LOG"
-    sleep 8
-    exit 1
-  fi
-  cd "$APP"
-  if ! "$NODE" "$NPM" ci --omit=dev --no-audit --no-fund >>"$LOG" 2>&1; then
-    echo "Install failed. See $LOG" | tee -a "$LOG"
-    sleep 8
-    exit 1
-  fi
-fi
-
-export NODE_OPTIONS="--max-old-space-size=384"
+export PORT=8080 HOST=127.0.0.1 NODE_OPTIONS="--max-old-space-size=256"
 cd "$APP"
-"$NODE" arkos/serve.mjs >"$LOG" 2>&1 &
+"$NODE" server/index.mjs >>"$LOG" 2>&1 &
 SERVER_PID=$!
 
 ready=0
-for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90; do
+for _ in $(seq 1 60); do
   if "$NODE" -e "fetch('http://127.0.0.1:8080/').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"; then
     ready=1
     break
   fi
+  kill -0 "$SERVER_PID" 2>/dev/null || break
   sleep 1
 done
-
-if [ "$ready" != 1 ]; then
-  echo "Portlight did not start. See $LOG" | tee -a "$LOG"
-  sleep 6
-  exit 1
-fi
-
-BROWSER="$APP/arkos/display/browser.arm64"
-WRAP="$APP/arkos/display/firefox-framebuffer-wrapper.py"
-if [ ! -f "$BROWSER" ] || [ ! -f "$WRAP" ]; then
-  echo "Portlight's display files are missing. Run install.bat again." | tee -a "$LOG"
-  sleep 8
-  exit 1
-fi
-chmod +x "$BROWSER" "$WRAP" 2>/dev/null || true
-
-if ! command -v firefox >/dev/null 2>&1 && ! command -v firefox-esr >/dev/null 2>&1; then
-  echo "Installing the display runtime. Leave Wi-Fi on. This happens once." | tee -a "$LOG"
-  if ! sudo apt-get update >>"$LOG" 2>&1 || ! sudo apt-get install -y firefox-esr xvfb xdotool python3 libsdl2-2.0-0 >>"$LOG" 2>&1; then
-    sudo apt-get install -y firefox xvfb xdotool python3 libsdl2-2.0-0 >>"$LOG" 2>&1 || true
-  fi
-fi
-if ! command -v firefox >/dev/null 2>&1 && ! command -v firefox-esr >/dev/null 2>&1; then
-  echo "The display runtime did not install. See $LOG" | tee -a "$LOG"
-  sleep 8
-  exit 1
-fi
+[ "$ready" = 1 ] || die "Portlight did not start. See $LOG"
 
 sudo mkdir -p /opt/fire4arkos /usr/local/bin
 sudo cp "$WRAP" /opt/fire4arkos/firefox-framebuffer-wrapper.py
@@ -109,4 +72,4 @@ sudo chmod +x /opt/fire4arkos/firefox-framebuffer-wrapper.py /usr/local/bin/fire
 export FIRE4ARKOS_WRAPPER="$WRAP"
 export FIRE4ARKOS_FROM_ES=1
 
-"$BROWSER" "http://127.0.0.1:8080/" >>"$LOG" 2>&1
+"$BROWSER" "http://127.0.0.1:8080/?fe=1" >>"$LOG" 2>&1

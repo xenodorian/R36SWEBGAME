@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lantern Run</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #101210; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+const keys = new Set();
+const pulses = new Set();
+function press(phase, code) {
+  if (phase === "keydown") {
+    if (!keys.has(code)) pulses.add(code);
+    keys.add(code);
+  } else keys.delete(code);
+}
+function held(code) {
+  return keys.has(code) || pulses.has(code);
+}
+window.addEventListener("keydown", (e) => {
+  press("keydown", e.code);
+  if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) e.preventDefault();
+});
+window.addEventListener("keyup", (e) => press("keyup", e.code));
+window.addEventListener("blur", () => keys.clear());
+window.addEventListener("message", (e) => {
+  const d = e.data;
+  if (!d || d.source !== "portlight") return;
+  if (d.phase === "keydown" || d.phase === "keyup") press(d.phase, d.code);
+});
+
+let dpr = 1;
+function resize() {
+  dpr = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = Math.floor(window.innerWidth * dpr);
+  canvas.height = Math.floor(window.innerHeight * dpr);
+}
+window.addEventListener("resize", resize);
+resize();
+
+let y = 0;
+let vy = 0;
+let onGround = true;
+let latch = false;
+let obstacles = [];
+let spawn = 0.4;
+let score = 0;
+let best = 0;
+let dead = false;
+let flash = 0;
+
+function jumpPressed() {
+  return held("Space") || held("KeyZ") || held("ArrowUp") || held("KeyW");
+}
+
+function reset() {
+  y = 0;
+  vy = 0;
+  onGround = true;
+  latch = true;
+  obstacles = [];
+  spawn = 0.6;
+  score = 0;
+  dead = false;
+  flash = 0;
+}
+
+function roundRect(x, top, w, h, r) {
+  ctx.beginPath();
+  ctx.roundRect(x, top, w, h, r);
+  ctx.fill();
+}
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.033, (now - last) / 1000);
+  last = now;
+  const W = canvas.width;
+  const H = canvas.height;
+  const ground = H * 0.78;
+  const ph = Math.max(46 * dpr, H * 0.11);
+  const pw = ph * 0.62;
+  const px = W * 0.22;
+  const jumping = jumpPressed();
+
+  if (dead) {
+    if (jumping && !latch) reset();
+  } else {
+    if (jumping && !latch && onGround) {
+      vy = -H * 1.35;
+      onGround = false;
+    }
+    vy += H * 3.1 * dt;
+    y += vy * dt;
+    if (y > 0) {
+      y = 0;
+      vy = 0;
+      onGround = true;
+    }
+    const speed = (320 + Math.min(score, 40) * 9) * dpr;
+    spawn -= dt;
+    if (spawn <= 0) {
+      const tall = ground * (0.14 + Math.random() * 0.16);
+      obstacles.push({ x: W + 8, w: (26 + Math.random() * 22) * dpr, h: tall });
+      spawn = Math.max(0.82, 1.25 - Math.min(score, 30) * 0.012);
+    }
+    for (const o of obstacles) o.x -= speed * dt;
+    obstacles = obstacles.filter((o) => o.x + o.w > -20);
+    const top = ground + y - ph;
+    const bottom = ground + y - 6 * dpr;
+    for (const o of obstacles) {
+      const hit = px + pw * 0.7 > o.x + 6 && px + pw * 0.15 < o.x + o.w - 6 && bottom > ground - o.h && top < ground;
+      if (hit) {
+        dead = true;
+        flash = 1;
+        best = Math.max(best, Math.floor(score));
+      }
+    }
+    score += dt * 8;
+  }
+  latch = jumping;
+  if (flash > 0) flash = Math.max(0, flash - dt * 2);
+
+  ctx.fillStyle = "#101210";
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = "#313832";
+  ctx.lineWidth = 2 * dpr;
+  for (let i = 0; i < 8; i++) {
+    ctx.beginPath();
+    ctx.moveTo(0, ground * (0.15 + i * 0.08));
+    ctx.lineTo(W, ground * (0.15 + i * 0.08));
+    ctx.stroke();
+  }
+  ctx.fillStyle = "#e6a23c";
+  ctx.fillRect(0, ground, W, Math.max(3 * dpr, 4));
+  ctx.fillStyle = "#232924";
+  ctx.fillRect(0, ground + 4 * dpr, W, H - ground);
+
+  for (const o of obstacles) {
+    ctx.fillStyle = "#2a312b";
+    roundRect(o.x, ground - o.h, o.w, o.h, 4 * dpr);
+    ctx.fillStyle = "#e6a23c";
+    ctx.fillRect(o.x, ground - o.h, o.w, 4 * dpr);
+  }
+
+  const top = ground + y - ph;
+  ctx.fillStyle = "#e6a23c";
+  roundRect(px, top, pw, ph, 6 * dpr);
+  ctx.fillStyle = "#16130c";
+  roundRect(px + pw * 0.22, top + ph * 0.18, pw * 0.56, ph * 0.34, 3 * dpr);
+  ctx.fillStyle = flash > 0.4 ? "#e7efe4" : "#e6a23c";
+  ctx.beginPath();
+  ctx.arc(px + pw * 0.5, top + ph * 0.34, pw * 0.1, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#e7efe4";
+  ctx.font = `${Math.round(28 * dpr)}px "Segoe UI", sans-serif`;
+  ctx.fillText(String(Math.floor(score)), 20 * dpr, 42 * dpr);
+  ctx.fillStyle = "#a8b5a6";
+  ctx.font = `${Math.round(14 * dpr)}px "Segoe UI", sans-serif`;
+  ctx.fillText(best ? `BEST ${best}` : "UP OR Z TO JUMP", 20 * dpr, 64 * dpr);
+
+  if (dead) {
+    ctx.fillStyle = "rgba(16,18,16,0.72)";
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#e6a23c";
+    ctx.font = `${Math.round(36 * dpr)}px "Segoe UI", sans-serif`;
+    ctx.fillText("LANTERN OUT", 20 * dpr, H * 0.42);
+    ctx.fillStyle = "#e7efe4";
+    ctx.font = `${Math.round(16 * dpr)}px "Segoe UI", sans-serif`;
+    ctx.fillText("Z or A to run again", 20 * dpr, H * 0.42 + 32 * dpr);
+  }
+  requestAnimationFrame(frame);
+  pulses.clear();
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

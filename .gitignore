@@ -14,3 +14,5 @@ screenshots
 .node_modules.lock
 AGENTS.md
 .DS_Store
+dist-release
+__pycache__

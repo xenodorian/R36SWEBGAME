@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { readPad } from "@/lib/pad";
+import { padOwnedByFrontEnd, readPad } from "@/lib/pad";
 
 function visible(el: HTMLElement) {
   const rect = el.getBoundingClientRect();
@@ -139,7 +139,7 @@ export function MenuControls() {
       if (keys.has("KeyD")) mx += 1;
       if (keys.has("KeyW")) my -= 1;
       if (keys.has("KeyS")) my += 1;
-      if (pad) {
+      if (pad && !padOwnedByFrontEnd()) {
         const state = readPad(pad);
         if (state.lx || state.ly) {
           if (!stickSince.current) stickSince.current = now;
