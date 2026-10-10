@@ -81,22 +81,7 @@ try {
       Copy-Item $saved (Join-Path $dest "runtime\$name") -Recurse -Force
     }
   }
-  New-Item -ItemType Directory -Force -Path (Join-Path $dest "runtime\firefox") | Out-Null
   New-Item -ItemType Directory -Force -Path (Join-Path $dest "runtime\profile") | Out-Null
-
-  $firefox = $null
-  foreach ($folder in @("tools", "ports")) {
-    $root = Join-Path $card $folder
-    if (-not (Test-Path $root)) { continue }
-    $firefox = Get-ChildItem $root -Recurse -File -Filter "firefox" -ErrorAction SilentlyContinue |
-      Where-Object { $_.Length -gt 1MB } |
-      Select-Object -First 1
-    if ($firefox) { break }
-  }
-  if ($firefox) {
-    Copy-Item $firefox.FullName (Join-Path $dest "runtime\firefox\firefox") -Force
-    Write-Host "Copied the fullscreen runtime from $($firefox.FullName)"
-  }
 
   $sh = Get-Content (Join-Path $source "arkos\Portlight.sh") -Raw
   $sh = $sh -replace "`r`n", "`n" -replace "`r", "`n"
@@ -110,11 +95,6 @@ try {
   Write-Host "Portlight is on the card."
   Write-Host "Boot the R36S, open Ports, and start Portlight."
   Write-Host "The first launch installs the rest. Leave Wi-Fi on."
-  if (-not $firefox) {
-    Write-Host ""
-    Write-Host "The fullscreen runtime was not on the card yet."
-    Write-Host "Install Fire4ArkOS from Tools, run this installer again, and it will pick that file up."
-  }
 } finally {
   if (Test-Path $temp) { Remove-Item $temp -Recurse -Force -ErrorAction SilentlyContinue }
 }

@@ -81,23 +81,32 @@ if [ "$ready" != 1 ]; then
   exit 1
 fi
 
-FIREFOX="$APP/runtime/firefox/firefox"
-if [ ! -x "$FIREFOX" ]; then
-  echo "Portlight's fullscreen runtime is missing at $FIREFOX" | tee -a "$LOG"
+BROWSER="$APP/arkos/display/browser.arm64"
+WRAP="$APP/arkos/display/firefox-framebuffer-wrapper.py"
+if [ ! -f "$BROWSER" ] || [ ! -f "$WRAP" ]; then
+  echo "Portlight's display files are missing. Run install.bat again." | tee -a "$LOG"
+  sleep 8
+  exit 1
+fi
+chmod +x "$BROWSER" "$WRAP" 2>/dev/null || true
+
+if ! command -v firefox >/dev/null 2>&1 && ! command -v firefox-esr >/dev/null 2>&1; then
+  echo "Installing the display runtime. Leave Wi-Fi on. This happens once." | tee -a "$LOG"
+  if ! sudo apt-get update >>"$LOG" 2>&1 || ! sudo apt-get install -y firefox-esr xvfb xdotool python3 libsdl2-2.0-0 >>"$LOG" 2>&1; then
+    sudo apt-get install -y firefox xvfb xdotool python3 libsdl2-2.0-0 >>"$LOG" 2>&1 || true
+  fi
+fi
+if ! command -v firefox >/dev/null 2>&1 && ! command -v firefox-esr >/dev/null 2>&1; then
+  echo "The display runtime did not install. See $LOG" | tee -a "$LOG"
   sleep 8
   exit 1
 fi
 
-GPTK=""
-for candidate in "$APP/runtime/gptokeyb" /usr/bin/gptokeyb /opt/inttools/gptokeyb; do
-  if [ -x "$candidate" ]; then
-    GPTK="$candidate"
-    break
-  fi
-done
-if [ -n "$GPTK" ]; then
-  "$GPTK" "firefox" -c "$APP/arkos/portlight.gptk" >/dev/null 2>&1 &
-  GPTK_PID=$!
-fi
+sudo mkdir -p /opt/fire4arkos /usr/local/bin
+sudo cp "$WRAP" /opt/fire4arkos/firefox-framebuffer-wrapper.py
+sudo cp "$WRAP" /usr/local/bin/firefox-framebuffer-wrapper.py
+sudo chmod +x /opt/fire4arkos/firefox-framebuffer-wrapper.py /usr/local/bin/firefox-framebuffer-wrapper.py
+export FIRE4ARKOS_WRAPPER="$WRAP"
+export FIRE4ARKOS_FROM_ES=1
 
-"$FIREFOX" --profile "$PROFILE" --no-remote --kiosk "http://127.0.0.1:8080/"
+"$BROWSER" "http://127.0.0.1:8080/" >>"$LOG" 2>&1

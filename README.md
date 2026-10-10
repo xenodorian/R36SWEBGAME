@@ -8,11 +8,7 @@ The pad is the mouse. GitHub browsing, downloads, and play all happen inside Por
 
 Plug the SD card into a Windows computer and double-click [install.bat](install.bat). It copies Portlight onto the EASYROMS drive and downloads the handheld runtime.
 
-Boot the R36S, open **Ports**, and start **Portlight**. The first launch finishes the install. Leave Wi-Fi on. That only happens once.
-
-Quit returns to the games menu. Saves and the shelf stay in `ports/portlight/runtime/profile` on the SD card.
-
-If the card does not already contain a fullscreen runtime, install Fire4ArkOS from Tools and run `install.bat` again. It copies that file into Portlight. You do not open it or type an address.
+Boot the R36S, open **Ports**, and start **Portlight**. The first launch finishes the install, including the fullscreen display. Leave Wi-Fi on. That only happens once. Quit returns to the games menu. Saves stay on the card.
 
 ## Included games
 
