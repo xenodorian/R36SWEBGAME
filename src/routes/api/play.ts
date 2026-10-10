@@ -24,7 +24,7 @@ export const Route = createFileRoute("/api/play")({
           return new Response(html, {
             headers: {
               "content-type": "text/html; charset=utf-8",
-              "cache-control": "private, max-age=120",
+              "cache-control": "no-store",
               "x-content-type-options": "nosniff",
             },
           });

@@ -267,6 +267,16 @@ export function PlayerView({ target, onExit }: { target: PlayTarget; onExit: () 
   }
 
   useEffect(() => {
+    const node = frame.current;
+    if (!node || !doc) return;
+    const origin = window.location.origin;
+    const html = doc.replace(/(\s(?:src|href|poster)=["'])\/api\//g, `$1${origin}/api/`);
+    const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+    node.src = url;
+    return () => URL.revokeObjectURL(url);
+  }, [doc]);
+
+  useEffect(() => {
     let cancel = false;
     setDoc(null);
     setLoadError(null);
@@ -486,9 +496,7 @@ export function PlayerView({ target, onExit }: { target: PlayTarget; onExit: () 
           <iframe
             ref={frame}
             title={target.title}
-            srcDoc={doc}
             tabIndex={0}
-            sandbox="allow-scripts allow-same-origin allow-modals allow-pointer-lock allow-popups allow-forms allow-downloads"
             className="absolute inset-0 h-full w-full border-0 bg-bg"
           />
           {mouseOn ? (
