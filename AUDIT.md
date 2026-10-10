@@ -31,3 +31,16 @@ Pad behavior, audio, performance and Firefox install on real hardware.
 4. Wrapper: fix prefs, CSS, CommandBatcher, profile path.
 5. pad.ts: R36S raw layout when mapping is not "standard"; skip in-app pad menu control under the front-end.
 6. GPL notice, README correction, rebuild zip, push to main.
+
+## Status after fixes (commits 77aa763, b109756, 35872e7)
+
+Done: 1 (no npm/apt-for-Node on device; Node bundled and SHA256-checked), 2 (prebuilt node-server in arkos/app, Firefox 78 target),
+3 (dead gptokeyb code removed; front-end owns the pad), 4, 5, 6 (raw layout used when mapping is not "standard"),
+7 (?fe=1 disables in-app cursor control), 8 (profile moved to ports/portlight/data, preserved, old profile migrated),
+9 (CommandBatcher), 10 (NOTICE.md), 11 (installer is offline, copies ~55 files plus the Node binary).
+Inferred items: ES is no longer stopped; apt sources are rewritten to old-releases.ubuntu.com if `apt-get update` fails.
+
+Still unverified on hardware: PORTLIGHT_PROFILE reaching Firefox through browser.arm64 (a closed binary), the apt install of
+firefox-esr/xvfb/xdotool on ArkOS, the installer on real Windows (no PowerShell was available to test), pad behavior, audio, performance.
+Not solvable here: Firefox, Xvfb and xdotool cannot be bundled, so the first boot still needs Wi-Fi once.
+Not done: the unrelated Grok/auth/PGLite scaffolding in the repo is still shipped in source but not in the device build.
