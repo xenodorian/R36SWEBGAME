@@ -67,9 +67,9 @@ try {
     Copy-Item $_.FullName (Join-Path $dest $_.Name) -Recurse -Force
   }
 
-  $nodeArchive = Join-Path $temp "node.tar.xz"
+  $nodeArchive = Join-Path $temp "node.tar.gz"
   Write-Host "Downloading the handheld runtime..."
-  Invoke-WebRequest -Uri "https://nodejs.org/dist/$NodeVersion/$NodeName.tar.xz" -OutFile $nodeArchive
+  Invoke-WebRequest -Uri "https://nodejs.org/dist/$NodeVersion/$NodeName.tar.gz" -OutFile $nodeArchive
   tar -xf $nodeArchive -C $temp
   $nodeRoot = Join-Path $temp $NodeName
   if (-not (Test-Path (Join-Path $nodeRoot "bin\node"))) { throw "The Node download was not usable." }
