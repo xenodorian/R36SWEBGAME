@@ -1,19 +1,27 @@
 # GitROMs
 
-Lightweight GitHub ROM browser and downloader for the R36S (ArkOS).
+Simple GitHub ROM browser for the R36S (ArkOS).
 
-**No browser. No Firefox. Pure Python + pygame.**
+**Download the ready-to-use package here:**
 
-All project files live in the [`gitroms/`](gitroms/) folder.
+**[GitROMs.zip](https://github.com/xenodorian/R36SWEBGAME/raw/main/GitROMs.zip)**
 
-## Quick install (Windows)
+## Install (takes 30 seconds)
 
-1. Download this repository.
-2. Plug in the R36S SD card (EASYROMS drive).
-3. Open the `gitroms` folder and double-click **`install.bat`**.
-4. Eject the card, put it back in the R36S, boot.
-5. Open **Ports** → launch **GitROMs**.
+1. Download `GitROMs.zip`
+2. Unzip it
+3. Copy the `GitROMs` folder into the **ports** folder on your SD card
+4. Put the SD card back in the R36S and turn it on
+5. Open **Ports** → **GitROMs**
 
-First launch automatically installs `python3-pygame` and `python3-requests` if needed (Wi-Fi required once).
+That is all.
 
-See [`gitroms/README.md`](gitroms/README.md) for full details.
+## Controls
+
+- D-pad = move
+- A = select / download
+- B = back
+
+## What changed
+
+This version never touches system files, never runs apt, and cannot brick the device.
