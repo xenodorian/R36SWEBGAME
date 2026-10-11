@@ -1,16 +1,16 @@
 # GitROMs configuration
 
 # UI colors (dark theme + signal orange)
-BG = (16, 18, 16)          # #101210
-SURFACE = (24, 28, 24)     # slightly raised
-RAISED = (35, 41, 36)      # #232924
-FG = (231, 239, 228)       # #e7efe4
-MUTED = (168, 181, 166)    # #a8b5a6
-LINE = (49, 56, 50)        # #313832
-SIGNAL = (230, 162, 60)    # #e6a23c
-INK = (22, 19, 12)         # #16130c
+BG = (16, 18, 16)
+SURFACE = (24, 28, 24)
+RAISED = (35, 41, 36)
+FG = (231, 239, 228)
+MUTED = (168, 181, 166)
+LINE = (49, 56, 50)
+SIGNAL = (230, 162, 60)
+INK = (22, 19, 12)
 
-# Screen (R36S is usually 640x480)
+# Screen (R36S is 640x480)
 WIDTH = 640
 HEIGHT = 480
 FPS = 30
@@ -28,7 +28,6 @@ ROM_EXTENSIONS = {
 }
 
 # Map extension -> ArkOS rom folder name
-# First match wins. zip/7z go to a generic place or we try to guess later.
 EXT_TO_SYSTEM = {
     ".nes": "nes",
     ".smc": "snes",
@@ -38,7 +37,7 @@ EXT_TO_SYSTEM = {
     ".gb": "gb",
     ".md": "megadrive",
     ".gen": "megadrive",
-    ".bin": "megadrive",      # common for Genesis; user can move if wrong
+    ".bin": "megadrive",
     ".sms": "mastersystem",
     ".gg": "gamegear",
     ".pce": "pcengine",
@@ -46,12 +45,12 @@ EXT_TO_SYSTEM = {
     ".n64": "n64",
     ".v64": "n64",
     ".nds": "nds",
-    ".chd": "psx",            # most common for CHD on this device
+    ".chd": "psx",
     ".pbp": "psx",
-    ".iso": "psp",            # or dreamcast/psx – user can move
+    ".iso": "psp",
     ".cso": "psp",
     ".cue": "psx",
-    ".zip": "arcade",         # safest default for zip
+    ".zip": "arcade",
     ".7z": "arcade",
 }
 
@@ -68,6 +67,5 @@ ROM_ROOT_CANDIDATES = [
 
 # GitHub API
 GITHUB_API = "https://api.github.com"
-USER_AGENT = "GitROMs-R36S/1.0"
-# Optional: set a personal access token here later for higher rate limits
+USER_AGENT = "GitROMs-R36S/1.1"
 GITHUB_TOKEN = None

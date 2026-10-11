@@ -1,8 +1,4 @@
-"""Minimal GitHub API client for GitROMs.
-
-Only fetches what we need. Never downloads file contents until the user
-explicitly chooses to download a ROM.
-"""
+"""Minimal GitHub API client for GitROMs."""
 
 import json
 import urllib.request
@@ -42,7 +38,7 @@ def _get(url: str) -> Tuple[Optional[object], Optional[str]]:
 
 
 def list_user_repos(username: str) -> Tuple[List[Dict], Optional[str]]:
-    """Return list of public repos for a user (name, description, default_branch)."""
+    """Return list of public repos for a user."""
     url = f"{GITHUB_API}/users/{username}/repos?per_page=100&sort=updated&type=public"
     data, err = _get(url)
     if err:
@@ -62,11 +58,7 @@ def list_user_repos(username: str) -> Tuple[List[Dict], Optional[str]]:
 
 
 def list_contents(owner: str, repo: str, path: str = "", ref: str = "main") -> Tuple[List[Dict], Optional[str]]:
-    """List directory contents. Only returns directories + ROM files.
-
-    Each item: {"name", "path", "type": "dir"|"file", "size", "download_url"}
-    """
-    # GitHub contents API
+    """List directory contents. Only returns directories + ROM files."""
     api_path = path.strip("/")
     url = f"{GITHUB_API}/repos/{owner}/{repo}/contents/{api_path}"
     if ref:
@@ -75,7 +67,6 @@ def list_contents(owner: str, repo: str, path: str = "", ref: str = "main") -> T
     if err:
         return [], err
 
-    # Single file response becomes a list of one
     if isinstance(data, dict):
         data = [data]
     if not isinstance(data, list):
@@ -84,7 +75,7 @@ def list_contents(owner: str, repo: str, path: str = "", ref: str = "main") -> T
     items = []
     for entry in data:
         name = entry.get("name") or ""
-        typ = entry.get("type")  # "file" or "dir"
+        typ = entry.get("type")
         if typ == "dir":
             items.append({
                 "name": name,
@@ -103,9 +94,7 @@ def list_contents(owner: str, repo: str, path: str = "", ref: str = "main") -> T
                     "size": entry.get("size") or 0,
                     "download_url": entry.get("download_url"),
                 })
-            # non-ROM files are silently dropped – never shown, never transferred
 
-    # Dirs first, then files, both alphabetically
     items.sort(key=lambda x: (0 if x["type"] == "dir" else 1, x["name"].lower()))
     return items, None
 
