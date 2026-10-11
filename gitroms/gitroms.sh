@@ -1,5 +1,5 @@
 #!/bin/bash
-# GitROMs launcher for ArkOS Ports menu
+# GitROMs — self-contained launcher for ArkOS / R36S
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$DIR" || exit 1
@@ -12,91 +12,59 @@ say() {
   echo "$*" > /dev/tty1 2>/dev/null || true
 }
 
-# Prefer python3
 PYTHON=python3
 command -v python3 >/dev/null 2>&1 || PYTHON=python
-say "Using: $PYTHON ($($PYTHON --version 2>&1))"
+say "Python: $($PYTHON --version 2>&1)"
 
-need_install=0
-"$PYTHON" -c "import pygame" 2>>"$LOG" || need_install=1
-"$PYTHON" -c "import urllib.request" 2>>"$LOG" || true
-# requests is optional — we use urllib in github_client, but keep trying for requests
-
-if [ "$need_install" = 1 ]; then
-  say "Missing pygame — installing (needs Wi-Fi)…"
-
-  if command -v apt-get >/dev/null 2>&1; then
-    say "apt-get update…"
-    if ! sudo apt-get update >>"$LOG" 2>&1; then
-      say "apt update failed, trying old-releases mirrors…"
-      sudo sed -i -E 's#https?://(ports|archive|security)\.ubuntu\.com#http://old-releases.ubuntu.com#g' /etc/apt/sources.list 2>/dev/null || true
-      sudo apt-get update >>"$LOG" 2>&1 || true
-    fi
-    say "apt-get install python3-pygame…"
-    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3-pygame >>"$LOG" 2>&1 || true
-    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3-pip >>"$LOG" 2>&1 || true
+# Install pygame from bundled wheel if missing
+if ! "$PYTHON" -c "import pygame" 2>>"$LOG"; then
+  say "pygame missing — installing from local wheel…"
+  PYVER=$("$PYTHON" -c "import sys; print('cp%d%d' % (sys.version_info[0], sys.version_info[1]))")
+  say "Looking for wheel matching $PYVER aarch64"
+  WHEEL=$(ls -1 "$DIR/wheels"/pygame-*-${PYVER}-*aarch64*.whl 2>/dev/null | head -n1)
+  if [ -z "$WHEEL" ]; then
+    WHEEL=$(ls -1 "$DIR/wheels"/pygame-*aarch64*.whl 2>/dev/null | head -n1)
   fi
-
-  if ! "$PYTHON" -c "import pygame" 2>>"$LOG"; then
-    say "Trying pip install pygame…"
-    "$PYTHON" -m pip install --user pygame >>"$LOG" 2>&1 \
-      || "$PYTHON" -m pip install --user --break-system-packages pygame >>"$LOG" 2>&1 \
-      || sudo "$PYTHON" -m pip install pygame >>"$LOG" 2>&1 \
-      || true
+  if [ -z "$WHEEL" ]; then
+    say "ERROR: no pygame wheel in $DIR/wheels for $PYVER"
+    sleep 10
+    exit 1
   fi
+  say "Installing $(basename "$WHEEL")…"
+  "$PYTHON" -m pip install --user "$WHEEL" >>"$LOG" 2>&1 \
+    || "$PYTHON" -m pip install --user --break-system-packages "$WHEEL" >>"$LOG" 2>&1 \
+    || sudo "$PYTHON" -m pip install "$WHEEL" >>"$LOG" 2>&1 \
+    || true
 fi
 
 if ! "$PYTHON" -c "import pygame" 2>>"$LOG"; then
-  say "ERROR: pygame still missing."
-  say "See log: $LOG"
-  say "Connect Wi-Fi and try again."
+  say "ERROR: pygame still not importable. See $LOG"
+  tail -n 20 "$LOG" > /dev/tty1 2>/dev/null || true
   sleep 12
   exit 1
 fi
 
-say "pygame OK — starting GitROMs…"
+say "Starting GitROMs…"
 
-# ArkOS / handheld display setup
 export HOME="${HOME:-/home/ark}"
-export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/0}"
+# Do NOT load full gamecontrollerdb into env — causes "Argument list too long"
 
-# Try common SDL video drivers for R36S / ArkOS
-if [ -z "$SDL_VIDEODRIVER" ]; then
-  # kmsdrm is preferred on modern ArkOS; fall back handled by SDL
-  export SDL_VIDEODRIVER=kmsdrm
-fi
-export SDL_RENDER_DRIVER="${SDL_RENDER_DRIVER:-software}"
-
-if [ -f /opt/inttools/gamecontrollerdb.txt ]; then
-  export SDL_GAMECONTROLLERCONFIG="$(cat /opt/inttools/gamecontrollerdb.txt)"
-fi
-
-# Run app; capture crash
-"$PYTHON" -u main.py >>"$LOG" 2>&1
-RC=$?
-
-if [ $RC -ne 0 ]; then
-  say "GitROMs exited with code $RC"
-  # Retry once with different video driver
-  say "Retrying with SDL_VIDEODRIVER=fbcon…"
-  export SDL_VIDEODRIVER=fbcon
+for DRIVER in kmsdrm fbcon x11; do
+  say "Trying SDL_VIDEODRIVER=$DRIVER"
+  export SDL_VIDEODRIVER="$DRIVER"
+  if [ "$DRIVER" = "x11" ]; then
+    export DISPLAY="${DISPLAY:-:0}"
+  fi
   "$PYTHON" -u main.py >>"$LOG" 2>&1
   RC=$?
-fi
+  if [ $RC -eq 0 ]; then
+    exit 0
+  fi
+  say "Exit code $RC with $DRIVER"
+done
 
-if [ $RC -ne 0 ]; then
-  say "Retrying with SDL_VIDEODRIVER=x11…"
-  export SDL_VIDEODRIVER=x11
-  export DISPLAY="${DISPLAY:-:0}"
-  "$PYTHON" -u main.py >>"$LOG" 2>&1
-  RC=$?
-fi
-
-if [ $RC -ne 0 ]; then
-  say "Failed. Last log lines:"
-  tail -n 15 "$LOG" > /dev/tty1 2>/dev/null || true
-  tail -n 15 "$LOG"
-  sleep 15
-fi
-
-exit $RC
+say "All video drivers failed. Last log:"
+tail -n 20 "$LOG" > /dev/tty1 2>/dev/null || true
+tail -n 20 "$LOG"
+sleep 12
+exit 1
