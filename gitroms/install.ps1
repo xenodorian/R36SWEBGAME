@@ -30,7 +30,6 @@ if (-not $romRoot) {
     exit 1
 }
 
-# Prefer .../ports/gitroms or .../Ports/gitroms
 if ($romRoot -match "[\\/]Ports$") {
     $target = Join-Path $romRoot "gitroms"
 } else {
@@ -46,7 +45,7 @@ if (-not (Test-Path $target)) {
     New-Item -ItemType Directory -Path $target | Out-Null
 }
 
-$files = @("config.py", "github_client.py", "main.py", "GitROMs.sh", "README.md")
+$files = @("config.py", "github_client.py", "main.py", "GitROMs.sh", "gitroms.sh", "README.md")
 foreach ($f in $files) {
     $srcFile = Join-Path $src $f
     if (Test-Path $srcFile) {
@@ -63,8 +62,7 @@ Write-Host ""
 Write-Host "Next steps:"
 Write-Host "  1. Eject the SD card safely."
 Write-Host "  2. Put it back in the R36S and boot."
-Write-Host "  3. Open Ports and launch GitROMs."
-Write-Host "     First launch will automatically install"
-Write-Host "     python3-pygame and python3-requests if needed."
+Write-Host "  3. In EmulationStation: Main Menu -> Games Settings -> Update Gamelists"
+Write-Host "     (or restart ES), then open Ports -> gitroms."
 Write-Host ""
 Read-Host "Press Enter to exit"
