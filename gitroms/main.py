@@ -3,8 +3,8 @@
 
 import os
 import sys
-import time
-from typing import List, Dict, Optional, Tuple
+import traceback
+from typing import List, Dict, Optional
 
 import pygame
 
@@ -14,15 +14,11 @@ from config import (
 )
 from github_client import list_user_repos, list_contents, download_file
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 def find_rom_root() -> str:
     for candidate in ROM_ROOT_CANDIDATES:
         if os.path.isdir(candidate):
             return candidate
-    # Fallback: create under current working directory for testing
     fallback = os.path.join(os.path.dirname(os.path.abspath(__file__)), "roms")
     os.makedirs(fallback, exist_ok=True)
     return fallback
@@ -44,16 +40,34 @@ def format_size(n: int) -> str:
     return f"{n / (1024 * 1024):.1f} MB"
 
 
-# ---------------------------------------------------------------------------
-# UI primitives
-# ---------------------------------------------------------------------------
+def make_font(size: int, bold: bool = False):
+    """Try several fonts so it works on more devices."""
+    candidates = [
+        "DejaVu Sans",
+        "FreeSans",
+        "Liberation Sans",
+        "Noto Sans",
+        "Arial",
+        None,  # pygame default
+    ]
+    for name in candidates:
+        try:
+            if name is None:
+                return pygame.font.Font(None, size)
+            f = pygame.font.SysFont(name, size, bold=bold)
+            # Test that it can actually render
+            f.render("A", True, (255, 255, 255))
+            return f
+        except Exception:
+            continue
+    return pygame.font.Font(None, size)
+
 
 class Button:
-    def __init__(self, rect: pygame.Rect, label: str, data=None, small=False):
+    def __init__(self, rect: pygame.Rect, label: str, data=None):
         self.rect = rect
         self.label = label
         self.data = data
-        self.small = small
 
     def draw(self, surface, font, focused: bool, offset_y: int = 0):
         r = self.rect.move(0, -offset_y)
@@ -65,40 +79,38 @@ class Button:
         else:
             pygame.draw.rect(surface, LINE, r, width=1, border_radius=8)
 
+        # Truncate label if too long
+        max_w = r.width - 32
         text = font.render(self.label, True, text_color)
+        if text.get_width() > max_w:
+            # Simple truncation
+            while text.get_width() > max_w and len(self.label) > 3:
+                self.label = self.label[:-4] + "..."
+                text = font.render(self.label, True, text_color)
         tx = r.x + 16
         ty = r.centery - text.get_height() // 2
         surface.blit(text, (tx, ty))
 
 
-# ---------------------------------------------------------------------------
-# App state machine
-# ---------------------------------------------------------------------------
-
 class App:
     def __init__(self):
-        pygame.init()
         pygame.display.set_caption("GitROMs")
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         self.clock = pygame.time.Clock()
-        self.font = pygame.font.SysFont("DejaVu Sans", 22)
-        self.font_small = pygame.font.SysFont("DejaVu Sans", 16)
-        self.font_title = pygame.font.SysFont("DejaVu Sans", 28, bold=True)
+        self.font = make_font(22)
+        self.font_small = make_font(16)
+        self.font_title = make_font(28, bold=True)
 
         self.rom_root = find_rom_root()
         self.status = ""
         self.error = ""
 
-        # Navigation stack of screens
         self.stack: List[Dict] = []
         self.focus = 0
         self.buttons: List[Button] = []
         self.scroll = 0
 
-        # Start at home
         self.push_home()
-
-    # ---- screen builders -------------------------------------------------
 
     def push_home(self):
         self.stack = [{"kind": "home", "user": DEFAULT_USER}]
@@ -107,7 +119,7 @@ class App:
         self._rebuild()
 
     def push_repos(self, username: str):
-        self.status = f"Loading repos for {username}…"
+        self.status = f"Loading repos for {username}..."
         self.error = ""
         self._draw()
         pygame.display.flip()
@@ -130,7 +142,7 @@ class App:
         self._rebuild()
 
     def push_contents(self, owner: str, repo: str, path: str = "", ref: str = "main"):
-        self.status = "Loading…"
+        self.status = "Loading..."
         self.error = ""
         self._draw()
         pygame.display.flip()
@@ -164,8 +176,6 @@ class App:
             self.status = ""
             self._rebuild()
 
-    # ---- rebuild button list for current screen --------------------------
-
     def _rebuild(self):
         self.buttons = []
         screen = self.stack[-1]
@@ -186,7 +196,7 @@ class App:
             y += btn_h + gap
             self.buttons.append(Button(
                 pygame.Rect(margin, y, w, btn_h),
-                "Enter username…",
+                "Enter username...",
                 data=("enter_user", None),
             ))
 
@@ -194,7 +204,7 @@ class App:
             for repo in screen["repos"]:
                 label = repo["name"]
                 if repo["description"]:
-                    label = f"{repo['name']}  –  {repo['description'][:40]}"
+                    label = f"{repo['name']}  -  {repo['description'][:40]}"
                 self.buttons.append(Button(
                     pygame.Rect(margin, y, w, btn_h),
                     label,
@@ -227,8 +237,6 @@ class App:
             self.focus = max(0, min(self.focus, len(self.buttons) - 1))
         else:
             self.focus = 0
-
-    # ---- drawing ---------------------------------------------------------
 
     def _draw(self):
         self.screen.fill(BG)
@@ -287,8 +295,6 @@ class App:
                 continue
             btn.draw(self.screen, self.font, i == self.focus, self.scroll)
 
-    # ---- input -----------------------------------------------------------
-
     def _activate(self):
         if not self.buttons:
             return
@@ -298,6 +304,7 @@ class App:
         if action == "open_user":
             self.push_repos(data)
         elif action == "enter_user":
+            # Simple: just open the default again (no on-screen keyboard)
             self.push_repos(DEFAULT_USER)
         elif action == "open_repo":
             repo = data
@@ -327,7 +334,7 @@ class App:
         os.makedirs(dest_dir, exist_ok=True)
         dest = os.path.join(dest_dir, item["name"])
 
-        self.status = f"Downloading {item['name']} → {system}/ …"
+        self.status = f"Downloading {item['name']} -> {system}/ ..."
         self.error = ""
         self._draw()
         pygame.display.flip()
@@ -340,8 +347,6 @@ class App:
             self.status = f"Saved to {system}/{item['name']}"
             self.error = ""
         self._rebuild()
-
-    # ---- main loop -------------------------------------------------------
 
     def run(self):
         running = True
@@ -385,11 +390,39 @@ class App:
         pygame.quit()
 
 
-if __name__ == "__main__":
-    pygame.joystick.init()
-    if pygame.joystick.get_count() > 0:
-        js = pygame.joystick.Joystick(0)
-        js.init()
+def main():
+    log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gitroms.log")
 
-    app = App()
-    app.run()
+    def log(msg: str):
+        try:
+            with open(log_path, "a") as f:
+                f.write(msg + "\n")
+        except Exception:
+            pass
+        print(msg)
+
+    try:
+        log("===== GitROMs starting =====")
+        pygame.init()
+        pygame.joystick.init()
+        if pygame.joystick.get_count() > 0:
+            js = pygame.joystick.Joystick(0)
+            js.init()
+            log(f"Joystick: {js.get_name()}")
+
+        app = App()
+        app.run()
+        log("GitROMs exited normally")
+    except Exception as e:
+        err = traceback.format_exc()
+        log(f"FATAL ERROR:\n{err}")
+        # Try to show something on the device screen if possible
+        try:
+            print(f"GitROMs crashed: {e}", file=sys.stderr)
+        except Exception:
+            pass
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
