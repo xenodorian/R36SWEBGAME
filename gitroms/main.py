@@ -55,18 +55,19 @@ class Button:
         self.data = data
         self.small = small
 
-    def draw(self, surface, font, focused: bool):
+    def draw(self, surface, font, focused: bool, offset_y: int = 0):
+        r = self.rect.move(0, -offset_y)
         color = SIGNAL if focused else RAISED
         text_color = INK if focused else FG
-        pygame.draw.rect(surface, color, self.rect, border_radius=8)
+        pygame.draw.rect(surface, color, r, border_radius=8)
         if focused:
-            pygame.draw.rect(surface, SIGNAL, self.rect, width=3, border_radius=8)
+            pygame.draw.rect(surface, SIGNAL, r, width=3, border_radius=8)
         else:
-            pygame.draw.rect(surface, LINE, self.rect, width=1, border_radius=8)
+            pygame.draw.rect(surface, LINE, r, width=1, border_radius=8)
 
         text = font.render(self.label, True, text_color)
-        tx = self.rect.x + 16
-        ty = self.rect.centery - text.get_height() // 2
+        tx = r.x + 16
+        ty = r.centery - text.get_height() // 2
         surface.blit(text, (tx, ty))
 
 
@@ -89,7 +90,6 @@ class App:
         self.error = ""
 
         # Navigation stack of screens
-        # Each screen is a dict: {"kind": ..., ...}
         self.stack: List[Dict] = []
         self.focus = 0
         self.buttons: List[Button] = []
@@ -109,7 +109,7 @@ class App:
     def push_repos(self, username: str):
         self.status = f"Loading repos for {username}…"
         self.error = ""
-        self._draw()  # show loading
+        self._draw()
         pygame.display.flip()
 
         repos, err = list_user_repos(username)
@@ -203,7 +203,6 @@ class App:
                 y += btn_h + gap
 
         elif kind == "contents":
-            # Parent folder button if not root
             if screen["path"]:
                 self.buttons.append(Button(
                     pygame.Rect(margin, y, w, btn_h),
@@ -214,9 +213,9 @@ class App:
 
             for item in screen["items"]:
                 if item["type"] == "dir":
-                    label = f"📁  {item['name']}"
+                    label = f"[DIR]  {item['name']}"
                 else:
-                    label = f"💾  {item['name']}  ({format_size(item['size'])})"
+                    label = f"[ROM]  {item['name']}  ({format_size(item['size'])})"
                 self.buttons.append(Button(
                     pygame.Rect(margin, y, w, btn_h),
                     label,
@@ -224,7 +223,6 @@ class App:
                 ))
                 y += btn_h + gap
 
-        # Clamp focus
         if self.buttons:
             self.focus = max(0, min(self.focus, len(self.buttons) - 1))
         else:
@@ -268,18 +266,14 @@ class App:
         h = self.font_small.render(help_text, True, MUTED)
         self.screen.blit(h, (WIDTH - h.get_width() - 16, HEIGHT - 36))
 
-        # Buttons (with simple scroll)
         if not self.buttons:
             empty = self.font.render("No items", True, MUTED)
             self.screen.blit(empty, (24, 120))
             return
 
-        # Visible area
         top = 80
         bottom = HEIGHT - 50
-        visible_h = bottom - top
 
-        # Simple scroll so focused button is visible
         focused_btn = self.buttons[self.focus]
         if focused_btn.rect.bottom - self.scroll > bottom:
             self.scroll = focused_btn.rect.bottom - bottom
@@ -291,8 +285,7 @@ class App:
             r = btn.rect.move(0, -self.scroll)
             if r.bottom < top or r.top > bottom:
                 continue
-            # Clip draw roughly
-            btn.draw(self.screen, self.font, i == self.focus)
+            btn.draw(self.screen, self.font, i == self.focus, self.scroll)
 
     # ---- input -----------------------------------------------------------
 
@@ -305,8 +298,6 @@ class App:
         if action == "open_user":
             self.push_repos(data)
         elif action == "enter_user":
-            # Simple on-screen name for now – default to xenodorian again
-            # (full keyboard can be added later)
             self.push_repos(DEFAULT_USER)
         elif action == "open_repo":
             repo = data
@@ -373,7 +364,6 @@ class App:
                     elif event.key in (pygame.K_RETURN, pygame.K_SPACE, pygame.K_a, pygame.K_z):
                         self._activate()
                 elif event.type == pygame.JOYBUTTONDOWN:
-                    # Basic gamepad: 0=A, 1=B on many layouts
                     if event.button == 0:  # A
                         self._activate()
                     elif event.button == 1:  # B
@@ -383,12 +373,11 @@ class App:
                             running = False
                 elif event.type == pygame.JOYHATMOTION:
                     x, y = event.value
-                    if y == 1 and self.buttons:  # up
+                    if y == 1 and self.buttons:
                         self.focus = (self.focus - 1) % len(self.buttons)
-                    elif y == -1 and self.buttons:  # down
+                    elif y == -1 and self.buttons:
                         self.focus = (self.focus + 1) % len(self.buttons)
 
-            # Also poll axes for sticks if needed later
             self._draw()
             pygame.display.flip()
             self.clock.tick(FPS)
@@ -397,7 +386,6 @@ class App:
 
 
 if __name__ == "__main__":
-    # Init joystick if present
     pygame.joystick.init()
     if pygame.joystick.get_count() > 0:
         js = pygame.joystick.Joystick(0)
