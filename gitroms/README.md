@@ -12,47 +12,33 @@ Uses the GitHub API only. Shows only folders and known ROM file types. Downloads
 - **A** – Select / Confirm / Download
 - **B** – Back
 
-## Requirements on device
+## Install on the R36S (Windows)
 
-- Python 3
-- pygame
-- requests
+1. Download or clone this repo.
+2. Plug the R36S SD card into your Windows PC.
+3. Double-click **`gitroms/install.bat`**.
+   - It finds the EASYROMS / roms drive and copies everything into `ports/gitroms`.
+4. Eject the SD card safely, put it back in the R36S, and boot.
+5. Open **Ports** → launch **GitROMs**.
 
-One-time install (needs Wi-Fi):
+**First launch only:** the launcher automatically installs `python3-pygame` and `python3-requests` if they are missing (needs Wi-Fi once). After that it works offline except for talking to GitHub.
+
+If something fails, check `ports/gitroms/gitroms.log`.
+
+## Manual install (Linux / advanced)
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y python3-pygame python3-requests
+# Copy the gitroms folder to the Ports directory
+cp -r gitroms /path/to/EASYROMS/ports/
+chmod +x /path/to/EASYROMS/ports/gitroms/GitROMs.sh
 ```
-
-Or with pip:
-
-```bash
-pip3 install pygame requests
-```
-
-## Install
-
-1. Copy the entire `gitroms` folder to the Ports directory on the EASYROMS / roms card, e.g.:
-
-   `EASYROMS/ports/gitroms/`
-
-2. Make the launcher executable (on the device or via Linux):
-
-   ```bash
-   chmod +x ports/gitroms/GitROMs.sh
-   ```
-
-3. Restart EmulationStation or refresh the Ports list.
-
-4. Launch **GitROMs** from the Ports menu.
 
 ## Features
 
 - Defaults to user `xenodorian`
-- Enter any GitHub username or `owner/repo`
+- Browse any public user’s repositories
 - Browse folders
-- Only shows directories + ROM extensions
+- Only shows directories + ROM extensions (everything else is ignored)
 - Big chunky pad-friendly UI
 - Downloads to the correct system folder automatically
 
@@ -60,4 +46,4 @@ pip3 install pygame requests
 
 `.nes .smc .sfc .gba .gbc .gb .md .gen .bin .sms .gg .pce .z64 .n64 .v64 .nds .chd .pbp .iso .cso .cue .zip .7z`
 
-More can be added easily in `config.py`.
+Edit `config.py` to add more.
