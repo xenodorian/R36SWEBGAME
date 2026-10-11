@@ -7,7 +7,6 @@ echo  GitROMs installer
 echo  -----------------
 echo.
 
-REM Prefer PowerShell for reliability
 where powershell >nul 2>&1
 if %ERRORLEVEL% equ 0 (
   powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0install.ps1"
@@ -48,13 +47,14 @@ copy /Y "%~dp0config.py"          "%TARGET%\" >nul
 copy /Y "%~dp0github_client.py"   "%TARGET%\" >nul
 copy /Y "%~dp0main.py"            "%TARGET%\" >nul
 copy /Y "%~dp0GitROMs.sh"         "%TARGET%\" >nul
+copy /Y "%~dp0gitroms.sh"         "%TARGET%\" >nul
 copy /Y "%~dp0README.md"          "%TARGET%\" >nul
 
 echo Done.
 echo.
 echo 1. Eject the SD card safely.
 echo 2. Put it back in the R36S and boot.
-echo 3. Open Ports and launch GitROMs.
-echo    (First launch will install pygame/requests if needed.)
+echo 3. Main Menu -> Games Settings -> Update Gamelists
+echo    then open Ports -> gitroms.
 echo.
 pause
